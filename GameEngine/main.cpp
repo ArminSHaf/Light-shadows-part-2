@@ -97,6 +97,33 @@ std::vector<int> t2TargetOrder;
 // Store what the user collected
 std::vector<int> t2UserOrder;
 
+// TASK 4 VARS
+bool t4WizardAlive = true;
+glm::vec3 t4WizardPos; // Set when task starts
+bool t4MiniGameActive = false;
+float t4BarPos = 0.0f;     // Range -1.0 to 1.0
+float t4BarDir = 1.0f;     // Direction
+float t4BarSpeed = 0.8f;   // Speed of the bar (Slower)
+float t4SafeZoneWidth = 0.25f; // [-0.125, 0.125] - Bigger safe zone
+
+// TASK 5 VARS
+struct Projectile {
+	glm::vec3 pos;
+	glm::vec3 dir;
+	bool active;
+};
+std::vector<Projectile> t5Projectiles;
+bool t5BossAlive = true;
+glm::vec3 t5BossPos;
+int t5PlayerLives = 3;
+int t5BossHealth = 10;
+float t5CycleTimer = 0.0f; // Track 10s/5s cycle
+bool t5IsAttacking = true; // true = 10s attack, false = 5s rest
+float t5ShootCooldown = 0.0f;
+bool t5GameWon = false;
+bool t5GameOver = false;
+
+
 
 //s1 player and camera
 bool firstMouse = true;
@@ -1107,10 +1134,10 @@ int main()
 				{
 					// ----- Texture -----
 					GLuint tID = tex;
-					if (pc.type == 0) tID = tex;   // Cube
-					if (pc.type == 1) tID = tex2;  // Sphere
-					if (pc.type == 2) tID = tex5;  // Pyramid
-					if (pc.type == 3) tID = tex4;  // Hexagon
+					if (pc.type == 0) tID = tex;   // Wood
+					if (pc.type == 1) tID = tex2;  // Rock
+					if (pc.type == 2) tID = tex5;  // Metal
+					if (pc.type == 3) tID = tex4;  // Orange
 
 					glActiveTexture(GL_TEXTURE0);
 					glBindTexture(GL_TEXTURE_2D, tID);
@@ -1122,29 +1149,8 @@ int main()
 					liftedPos.y += 1.2f;   // 👈 adjust if needed
 					model = glm::translate(model, liftedPos);
 
-					// Per-shape scaling (important!)
-					if (pc.type == 0)       // Cube
-					{
-						model = glm::scale(model, glm::vec3(1.0f));
-					}
-					else if (pc.type == 1)  // Sphere (too big by default)
-					{
-						model = glm::scale(model, glm::vec3(0.15f));
-					}
-					else if (pc.type == 2)  // Pyramid (usually tall)
-					{
-						model = glm::scale(model, glm::vec3(1.0f));
-					}
-					else if (pc.type == 3)  // Hexagon
-					{
-						model = glm::scale(model, glm::vec3(0.15f, 0.15f, 0.15f));
-					}
-
-
-					//// Slightly different scales so shapes look balanced
-					//if (pc.type == 1)      model = glm::scale(model, glm::vec3(1.2f)); // sphere
-					//else if (pc.type == 3) model = glm::scale(model, glm::vec3(1.1f, 1.0f, 1.1f));
-					//else                   model = glm::scale(model, glm::vec3(1.0f));
+					// Per-shape scaling (Force 1.0f for Cube)
+					model = glm::scale(model, glm::vec3(1.0f));
 
 					glm::mat4 mvp = ProjectionMatrix * ViewMatrix * model;
 
@@ -1152,10 +1158,8 @@ int main()
 					glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
 
 					// ----- SHAPE SELECT -----
-					if (pc.type == 0) box.draw(shader);           // Cube
-					else if (pc.type == 1) sphereMesh.draw(shader); // Sphere
-					else if (pc.type == 2) pyramidMesh.draw(shader); // Pyramid
-					else if (pc.type == 3) hexMesh.draw(shader);     // Hexagon
+					// Always draw cube as requested
+					box.draw(shader);
 				}
 			}
 
@@ -1183,6 +1187,160 @@ int main()
 					currentBladeTex = lunarBladeTex; // SWITCH PLAYER SWORD
 					std::cout << "Lunar Blade secured!" << std::endl;
 					std::cout << "Task 3 Completed!" << std::endl;
+					std::cout << "Task 4: Defeat the Shadow Wizard!" << std::endl;
+
+
+					// INIT TASK 4
+					t4WizardPos = pedestalPos; 
+					t4WizardPos.z -= 40.0f; // "Further" behind the sword
+					t4WizardPos.y = getGroundHeight(t4WizardPos.x, t4WizardPos.z);
+					t4WizardAlive = true;
+					t4MiniGameActive = false;
+					t4BarPos = -0.9f; // Start at left (unsafe)
+				}
+			}
+		}
+
+		// TASK 4 LOGIC
+		if (currentTask == 3 && t4WizardAlive)
+		{
+			float distToWiz = distance(camera.getCameraPosition(), t4WizardPos);
+			if (distToWiz < 30.0f)
+			{
+				t4MiniGameActive = true;
+				// Animate Bar
+				t4BarPos += t4BarSpeed * t4BarDir * deltaTime;
+				if (t4BarPos > 1.0f) {
+					t4BarPos = 1.0f; t4BarDir = -1.0f;
+				}
+				if (t4BarPos < -1.0f) {
+					t4BarPos = -1.0f; t4BarDir = 1.0f;
+				}
+
+				// Check Input
+				if (window.isPressed(GLFW_KEY_E))
+				{
+					// Check if inside safe zone (centered at 0)
+					if (abs(t4BarPos) < (t4SafeZoneWidth * 0.5f)) // Assuming width is total width
+					{
+						std::cout << "CRITICAL HIT!" << std::endl;
+						
+						// Simulate Attack Lunge
+						glm::vec3 killPos = t4WizardPos;
+						killPos.y += playerHeight; 
+						camera.setCameraPosition(killPos);
+
+						t4WizardAlive = false;
+						t4MiniGameActive = false;
+						currentTask = 4; 
+						std::cout << "Task 4 Completed! YOU WIN!" << std::endl;
+						
+						// INIT TASK 5
+						std::cout << "FINAL TASK: THE DARK WIZARD APPEARS!" << std::endl;
+						std::cout << "Hide behind trees! Attack when he rests!" << std::endl;
+						currentTask = 5;
+						t5BossPos = glm::vec3(0.0f, 0.0f, 150.0f); // Far away
+						t5BossPos.y = getGroundHeight(t5BossPos.x, t5BossPos.z);
+						t5BossAlive = true;
+						t5PlayerLives = 3;
+						t5BossHealth = 10;
+						t5CycleTimer = 10.0f; // Start with 10s attack
+						t5IsAttacking = true;
+						t5Projectiles.clear();
+					}
+					else
+					{
+						 t4BarPos = -1.0f; 
+					}
+				}
+			}
+			else
+			{
+				t4MiniGameActive = false;
+			}
+		}
+
+		// TASK 5 LOGIC
+		if (currentTask == 5 && t5BossAlive && !t5GameOver && !t5GameWon)
+		{
+			// Cycle Logic
+			t5CycleTimer -= deltaTime;
+			if (t5CycleTimer <= 0.0f)
+			{
+				t5IsAttacking = !t5IsAttacking;
+				t5CycleTimer = t5IsAttacking ? 10.0f : 5.0f;
+				if (t5IsAttacking) std::cout << "Boss is ATTACKING! (10s)" << std::endl;
+				else               std::cout << "Boss is RESTING! (5s) ATTACK NOW!" << std::endl;
+			}
+
+			// Shooting Logic
+			if (t5IsAttacking)
+			{
+				t5ShootCooldown -= deltaTime;
+				if (t5ShootCooldown <= 0.0f)
+				{
+					t5ShootCooldown = 0.5f; // Fire every 0.5s
+					Projectile p;
+					p.pos = t5BossPos + glm::vec3(0, 8, 0); // Shoot from staff/hand height
+					p.dir = glm::normalize(camera.getCameraPosition() - p.pos);
+					p.active = true;
+					t5Projectiles.push_back(p);
+				}
+			}
+
+			// Update Projectiles
+			for (auto& p : t5Projectiles)
+			{
+				if (!p.active) continue;
+
+				float speed = 40.0f;
+				p.pos += p.dir * speed * deltaTime;
+
+				// Collision with Player
+				if (distance(p.pos, camera.getCameraPosition()) < 3.0f)
+				{
+					p.active = false;
+					t5PlayerLives--;
+					std::cout << "HIT! Lives left: " << t5PlayerLives << std::endl;
+					if (t5PlayerLives <= 0)
+					{
+						t5GameOver = true;
+						std::cout << "GAME OVER! You died." << std::endl;
+					}
+				}
+
+				// Collision with Trees
+				if (checkTreeCollision(p.pos, treeColliders))
+				{
+					p.active = false;
+				}
+
+				// Cleanup distance
+				if (distance(p.pos, t5BossPos) > 300.0f) p.active = false;
+			}
+
+			// Player Attack Logic
+			if (!t5IsAttacking && window.isPressed(GLFW_KEY_E) && !t5GameWon)
+			{
+				// Must be close enough?
+				if (distance(camera.getCameraPosition(), t5BossPos) < 30.0f)
+				{
+					// Simple "debounce" or rapid click handling? "Press E 10 times"
+					// We'll use a small timer to prevent 1-frame insta-kill 
+					static float hitTimer = 0.0f;
+					hitTimer -= deltaTime;
+					if (hitTimer <= 0.0f)
+					{
+						t5BossHealth--;
+						hitTimer = 0.3f; // Max 3 hits per second
+						std::cout << "Boss Hit! HP: " << t5BossHealth << std::endl;
+						if (t5BossHealth <= 0)
+						{
+							t5BossAlive = false;
+							t5GameWon = true;
+							std::cout << "VICTORY! The Wizard is defeated!" << std::endl;
+						}
+					}
 				}
 			}
 		}
@@ -1224,6 +1382,188 @@ int main()
 				glBindTexture(GL_TEXTURE_2D, part.textureID);
 				box.draw(shader);
 			}
+		}
+
+
+
+		// ================= TASK 4 RENDER (WIZARD + UI) =================
+		if (currentTask >= 3 && t4WizardAlive)
+		{
+			// Render Wizard (Reusing logic)
+			auto wizardParts4 = getWizardParts(wizRobeTex, wizSkinTex, wizHatTex, wizStaffTex);
+			for (auto& part : wizardParts4)
+			{
+				glm::mat4 model = glm::mat4(1.0f);
+				model = glm::translate(model, t4WizardPos + part.offset);
+				model = glm::scale(model, part.scale);
+
+				glm::mat4 MVP = ProjectionMatrix * ViewMatrix * model;
+				glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &MVP[0][0]);
+				glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
+
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, part.texture);
+				box.draw(shader);
+			}
+
+			// Render Mini-Game UI
+			if (t4MiniGameActive)
+			{
+				// Disable Depth Test & Culling for UI overlay
+				glDisable(GL_DEPTH_TEST);
+				glDisable(GL_CULL_FACE); // Fix visibility
+
+				// Orthographic Projection for 2D UI
+				// Screen is -1 to 1 in both axes
+				glm::mat4 orthoProj = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f);
+				glm::mat4 identityView = glm::mat4(1.0f); 
+
+				// --- 1. Background Bar (Metal) ---
+				shader.use();
+				glm::mat4 model = glm::mat4(1.0f);
+				model = glm::translate(model, glm::vec3(0.0f, -0.6f, 0.0f));
+				model = glm::scale(model, glm::vec3(0.8f, 0.1f, 1.0f)); // Wide bar
+
+				glm::mat4 MVP = orthoProj * identityView * model;
+				glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &MVP[0][0]);
+				glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
+				
+				// Keep lighting "neutral" for UI by placing light in front
+				glUniform3f(glGetUniformLocation(shader.getId(), "lightPos"), 0, 0, 10);
+				// Also update ViewPos to be in front so specular works
+				glUniform3f(glGetUniformLocation(shader.getId(), "viewPos"), 0, 0, 10);
+
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, tex5); // Metal
+				box.draw(shader);
+
+				// --- 2. Safe Zone (Green) ---
+				model = glm::mat4(1.0f);
+				model = glm::translate(model, glm::vec3(0.0f, -0.6f, 0.01f)); // Slightly in front
+				model = glm::scale(model, glm::vec3(t4SafeZoneWidth * 0.8f, 0.11f, 1.0f)); // Green Zone
+
+				MVP = orthoProj * identityView * model;
+				glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &MVP[0][0]);
+				glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]); // Update model for lighting
+
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, grassTex); // Green
+				box.draw(shader);
+
+				// --- 3. Moving Line (White) ---
+				sunShader.use(); // Unlit white
+				model = glm::mat4(1.0f);
+				// Map t4BarPos (-1..1) to visual range (-0.8..0.8)
+				float visualPos = t4BarPos * 0.8f; 
+				model = glm::translate(model, glm::vec3(visualPos, -0.6f, 0.02f)); // More in front
+				model = glm::scale(model, glm::vec3(0.02f, 0.15f, 1.0f)); // Thin vertical line
+
+				MVP = orthoProj * identityView * model;
+				glUniformMatrix4fv(glGetUniformLocation(sunShader.getId(), "MVP"), 1, GL_FALSE, &MVP[0][0]);
+				box.draw(sunShader);
+
+				// Restore State
+				glEnable(GL_DEPTH_TEST);
+				glEnable(GL_CULL_FACE); // Restore Culling
+
+				shader.use();
+				// Restore Light/View Pos
+				glUniform3f(glGetUniformLocation(shader.getId(), "lightPos"), lightPos.x, lightPos.y, lightPos.z);
+				glUniform3f(glGetUniformLocation(shader.getId(), "viewPos"), camera.getCameraPosition().x, camera.getCameraPosition().y, camera.getCameraPosition().z);
+
+			}
+		}
+
+
+
+		// ================= TASK 5 RENDER =================
+		if (currentTask == 5 && !t5GameOver)
+		{
+			// 1. Render Boss (Big Dark Wizard)
+			// Re-use wizard parts but darker texture? We don't have one, so we'll use same texture but maybe red light?
+			// Just Scale it UP
+			if (t5BossAlive)
+			{
+				auto bossParts = getWizardParts(wizRobeTex, wizSkinTex, wizHatTex, wizStaffTex);
+				for (auto& part : bossParts)
+				{
+					glm::mat4 model = glm::mat4(1.0f);
+					model = glm::translate(model, t5BossPos + part.offset * 2.0f); // x2 Offset
+					model = glm::scale(model, part.scale * 2.0f); // x2 Scale
+
+					glm::mat4 MVP = ProjectionMatrix * ViewMatrix * model;
+					glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &MVP[0][0]);
+					glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
+
+					glActiveTexture(GL_TEXTURE0);
+					glBindTexture(GL_TEXTURE_2D, part.texture);
+					box.draw(shader);
+				}
+			}
+
+			// 2. Render Projectiles
+			sunShader.use(); // Unlit
+			// Purple Color
+			// glUniform4f(glGetUniformLocation(sunShader.getId(), "OverrideColor"), 0.6f, 0.0f, 1.0f, 1.0f); 
+			
+			for (const auto& p : t5Projectiles)
+			{
+				if (!p.active) continue;
+				glm::mat4 model = glm::mat4(1.0f);
+				model = glm::translate(model, p.pos);
+				model = glm::scale(model, glm::vec3(0.5f, 0.5f, 2.0f)); // Long projectile
+				model = glm::rotate(model, atan2(p.dir.x, p.dir.z), glm::vec3(0,1,0)); // Rotate to face dir
+
+				glm::mat4 MVP = ProjectionMatrix * ViewMatrix * model;
+				glUniformMatrix4fv(glGetUniformLocation(sunShader.getId(), "MVP"), 1, GL_FALSE, &MVP[0][0]);
+				box.draw(sunShader);
+			}
+
+			// 3. UI (Health Bars)
+			// Disable Depth
+			glDisable(GL_DEPTH_TEST);
+			glDisable(GL_CULL_FACE);
+			shader.use();
+			glUniform3f(glGetUniformLocation(shader.getId(), "lightPos"), 0, 0, 10);
+			glUniform3f(glGetUniformLocation(shader.getId(), "viewPos"), 0, 0, 10);
+
+			glm::mat4 ortho = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f);
+			
+			// Player Health (Bottom Left) - 3 Lives
+			for(int i=0; i<t5PlayerLives; i++) {
+				glm::mat4 model = glm::mat4(1.0f);
+				model = glm::translate(model, glm::vec3(-0.9f + i*0.1f, -0.9f, 0.0f));
+				model = glm::scale(model, glm::vec3(0.04f, 0.04f, 1.0f)); 
+				glm::mat4 MVP = ortho * model; // No view
+				glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &MVP[0][0]);
+				glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, tex3); // Orange/Red Heart
+				box.draw(shader);
+			}
+
+			// Boss Health (Top Center) - 10 units
+			if (t5BossAlive) {
+				for(int i=0; i<t5BossHealth; i++) {
+					glm::mat4 model = glm::mat4(1.0f);
+					model = glm::translate(model, glm::vec3(-0.5f + i*0.1f, 0.9f, 0.0f));
+					model = glm::scale(model, glm::vec3(0.04f, 0.08f, 1.0f)); 
+					glm::mat4 MVP = ortho * model;
+					glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &MVP[0][0]);
+					glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
+					glActiveTexture(GL_TEXTURE0);
+					glBindTexture(GL_TEXTURE_2D, tex5); // Metal/Grey Bar
+					box.draw(shader);
+				}
+			}
+
+			glEnable(GL_DEPTH_TEST);
+			glEnable(GL_CULL_FACE);
+			
+			// RESTORE STANDARD SHADER STATE (Camera/Light)
+			shader.use();
+			glUniform3f(glGetUniformLocation(shader.getId(), "lightPos"), lightPos.x, lightPos.y, lightPos.z);
+			glUniform3f(glGetUniformLocation(shader.getId(), "viewPos"), camera.getCameraPosition().x, camera.getCameraPosition().y, camera.getCameraPosition().z);
 		}
 
 
