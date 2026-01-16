@@ -117,6 +117,47 @@ bool checkTreeCollision(
 	return false;
 }
 
+struct MeshBounds {
+	glm::vec3 center; // bbox center in mesh local space
+	glm::vec3 size;   // bbox size (width,height,depth) in mesh local space
+	float minY;       // lowest Y in mesh local space
+};
+
+MeshBounds computeBounds(const Mesh& mesh)
+{
+	const auto& v = mesh.getVertices(); // if your Mesh uses another name, tell me
+
+	glm::vec3 mn(FLT_MAX), mx(-FLT_MAX);
+
+	for (const auto& vert : v)
+	{
+		mn = glm::min(mn, vert.pos);
+		mx = glm::max(mx, vert.pos);
+	}
+
+	MeshBounds b;
+	b.center = (mn + mx) * 0.5f;
+	b.size = (mx - mn);
+	b.minY = mn.y;
+	return b;
+}
+
+MeshBounds getBoundsByType(int type,
+	const MeshBounds& flagB,
+	const MeshBounds& ramB,
+	const MeshBounds& trebB,
+	const MeshBounds& catB)
+{
+	switch (type)
+	{
+	case 0: return flagB;
+	case 1: return ramB;
+	case 2: return trebB;
+	case 3: return catB;
+	default: return flagB;
+	}
+}
+
 //s1 vars
 int currentTask = 0;
 glm::vec3 swordOffset = glm::vec3(5.0f, -5.0f, -10.0f);
@@ -157,8 +198,10 @@ glm::vec3 t4WizardPos; // Set when task starts
 bool t4MiniGameActive = false;
 float t4BarPos = 0.0f;     // Range -1.0 to 1.0
 float t4BarDir = 1.0f;     // Direction
-float t4BarSpeed = 0.8f;   // Speed of the bar (Slower)
-float t4SafeZoneWidth = 0.25f; // [-0.125, 0.125] - Bigger safe zone
+float t4BarSpeed = 1.0f;   // Speed of the bar (Balanced)
+float t4SafeZoneWidth = 0.20f; // [-0.10, 0.10] - Balanced safe zone
+int t4HitsInfo = 0; // Track hits (0 to 3)
+float t4SafeZoneCenter = 0.0f; // Center of target
 
 // TASK 5 VARS
 struct Projectile {
@@ -176,6 +219,65 @@ bool t5IsAttacking = true; // true = 10s attack, false = 5s rest
 float t5ShootCooldown = 0.0f;
 bool t5GameWon = false;
 bool t5GameOver = false;
+
+// STORY VARS
+struct StoryLine {
+	std::string speaker;
+	std::string text;
+	glm::vec3 color; // RGB for speaker name
+};
+
+std::vector<StoryLine> storyLines = {
+	{"Princess", "Brave Knight! Our kingdom is in grave peril.", glm::vec3(1.0f, 0.4f, 0.7f)},
+	{"Knight", "What has happened, my lady? I am at your service.", glm::vec3(0.3f, 0.6f, 1.0f)},
+	{"Princess", "Dark Warlocks have seized the Shadow Lands.", glm::vec3(1.0f, 0.4f, 0.7f)},
+	{"Princess", "You must defeat them and solve the ancient puzzles.", glm::vec3(1.0f, 0.4f, 0.7f)},
+	{"Knight", "It shall be done.", glm::vec3(0.3f, 0.6f, 1.0f)},
+	{"Princess", "If you succeed and cleanse this land...", glm::vec3(1.0f, 0.4f, 0.7f)},
+	{"Princess", "Then I shall grant you my hand in marriage.", glm::vec3(1.0f, 0.4f, 0.7f)},
+};
+
+// Warlock Dialogues
+std::vector<StoryLine> warlockLines1 = {
+	{"Dark Warlock", "So you defeated my apprentice? Hahaha...", glm::vec3(0.8f, 0.0f, 0.0f)},
+	{"Dark Warlock", "He was weak. A mere distraction.", glm::vec3(0.8f, 0.0f, 0.0f)},
+	{"Dark Warlock", "Let us see if your mind is as sharp as your sword.", glm::vec3(0.8f, 0.0f, 0.0f)},
+	{"Knight", "Show yourself, coward!", glm::vec3(0.3f, 0.6f, 1.0f)}
+};
+
+std::vector<StoryLine> warlockLines2 = {
+	{"Dark Warlock", "Impressive memory for a mortal.", glm::vec3(0.8f, 0.0f, 0.0f)},
+	{"Dark Warlock", "But brute strength and memory won't save you.", glm::vec3(0.8f, 0.0f, 0.0f)},
+	{"Dark Warlock", "The ancient blade lies ahead. Taking it will seal your doom.", glm::vec3(0.8f, 0.0f, 0.0f)}
+};
+
+std::vector<StoryLine> warlockLines3 = {
+	{"Dark Warlock", "You dare wield the Lunar Blade?", glm::vec3(0.8f, 0.0f, 0.0f)},
+	{"Dark Warlock", "That sword has corrupted greater souls than yours.", glm::vec3(0.8f, 0.0f, 0.0f)},
+	{"Dark Warlock", "Come then. My shadow guards await.", glm::vec3(0.8f, 0.0f, 0.0f)}
+};
+
+std::vector<StoryLine> warlockLines4 = {
+	{"Dark Warlock", "You persist? How annoying.", glm::vec3(0.8f, 0.0f, 0.0f)},
+	{"Dark Warlock", "The shadows have failed me. No matter.", glm::vec3(0.8f, 0.0f, 0.0f)},
+	{"Dark Warlock", "Face me yourself if you have a death wish!", glm::vec3(0.8f, 0.0f, 0.0f)},
+	{"Knight", "Your reign ends now!", glm::vec3(0.3f, 0.6f, 1.0f)}
+};
+
+std::vector<StoryLine> endStoryLines = {
+	{"Princess", "My Hero! You have defeated the Dark Wizard!", glm::vec3(1.0f, 0.4f, 0.7f)},
+	{"Knight", "The kingdom is safe, my lady.", glm::vec3(0.3f, 0.6f, 1.0f)},
+	{"Princess", "You have proven your valor and your heart.", glm::vec3(1.0f, 0.4f, 0.7f)},
+	{"Princess", "As promised, we shall be wed!", glm::vec3(1.0f, 0.4f, 0.7f)},
+	{"Knight", "It is my honor.", glm::vec3(0.3f, 0.6f, 1.0f)},
+	{"Princess", "Let us rejoice under these clear skies!", glm::vec3(1.0f, 0.4f, 0.7f)}
+};
+
+bool isStoryActive = true;
+int currentStoryLine = 0;
+bool isEndingActive = false;
+int currentEndingLine = 0;
+bool eKeyPressedLastFrame = false;
 
 
 //s1 player and camera
@@ -583,6 +685,34 @@ glm::vec3 spawnRandomCubeSafe(const std::vector<TreeCollider>& colliders, glm::v
 }
 
 
+//mihai
+float getPuzzleModelScale(int type)
+{
+	switch (type)
+	{
+	case 0: return 8.0f;   // flag
+	case 1: return 6.0f;   // gate
+	case 2: return 6.0f;   // door
+	case 3: return 4.0f;   // bridge
+	default: return 1.0f;
+	}
+}
+
+
+Mesh* getPuzzleMeshByType(int type, Mesh& flagMesh, Mesh& ramMesh, Mesh& trebuchetMesh, Mesh& catapultMesh, Mesh& box)
+{
+	switch (type)
+	{
+	case 0: return &flagMesh;
+	case 1: return &ramMesh;
+	case 2: return &trebuchetMesh;
+	case 3: return &catapultMesh;
+	default: return &box;
+	}
+}
+//mihai
+
+
 /////////////////////////////////////////
 int main()
 {
@@ -673,8 +803,7 @@ int main()
 	vert[2].normals = glm::normalize(glm::cross(vert[3].pos - vert[2].pos, vert[1].pos - vert[2].pos));
 	vert[3].normals = glm::normalize(glm::cross(vert[0].pos - vert[3].pos, vert[2].pos - vert[3].pos));
 
-	std::vector<int> ind = { 0, 1, 3,
-		1, 2, 3 };
+	std::vector<int> ind = { 0, 1, 3, 1, 2, 3 };
 
 	std::vector<Texture> textures;
 	textures.push_back(Texture());
@@ -726,6 +855,43 @@ int main()
 	Mesh pyramidMesh = loader.loadObj("Resources/Models/cube.obj", emptyTextures);
 	Mesh hexMesh = loader.loadObj("Resources/Models/sphere.obj", emptyTextures);
 
+	//test mihai
+	Mesh flagMesh = loader.loadObj(
+		"Resources/castle kit/Models/OBJ format/flag.obj"
+	);
+
+
+	Mesh ramMesh = loader.loadObj(
+		"Resources/castle kit/Models/OBJ format/siege-ram.obj"
+	);
+
+	Mesh trebuchetMesh = loader.loadObj(
+		"Resources/castle kit/Models/OBJ format/siege-trebuchet.obj"
+	);
+
+	Mesh catapultMesh = loader.loadObj(
+		"Resources/castle kit/Models/OBJ format/siege-catapult.obj"
+	);
+	//mihai end test
+
+
+	//mihai end test
+	MeshBounds flagB = computeBounds(flagMesh);
+	MeshBounds ramB = computeBounds(ramMesh);
+	MeshBounds trebB = computeBounds(trebuchetMesh);
+	MeshBounds catB = computeBounds(catapultMesh);
+	MeshBounds boxB = computeBounds(box);  // Compute box bounds for centering placeholders
+
+	auto getBoundsByType = [&](int type) -> MeshBounds {
+		switch (type) {
+		case 0: return flagB;
+		case 1: return ramB;
+		case 2: return trebB;
+		case 3: return catB;
+		default: return flagB;
+		}
+		};
+
 
 	//Mesh plane = loader.loadObj("Resources/Models/plane.obj", textures3);
 	//s1 new plane
@@ -738,12 +904,21 @@ int main()
 
 	// tree
 	Mesh tree = loader.loadObj("Resources/Models/HorrorTree.obj", treeTextures);
+	// wizard projectile
+	Mesh projectileMesh = loader.loadObj("Resources/Models/WizardProjectile/CraneoOBJ.obj");
+	// Princess (Task 0 / Intro)
+	Mesh princessMesh = loader.loadObj("Resources/Models/girl/Female_Dark_Knight.obj");
+
 	// tree positions
 	std::vector<glm::vec3> treePositions;
 	for (int x = -300; x <= 300; x += 40)
 	{
 		for (int z = -300; z <= 300; z += 40)
 		{
+			// Filter puzzle area
+			if (glm::distance(glm::vec2(x, z), glm::vec2(-20.0f, 20.0f)) < 35.0f)
+				continue;
+
 			float y = getGroundHeight(x, z);
 			treePositions.push_back(glm::vec3(x, y, z));
 		}
@@ -792,7 +967,10 @@ int main()
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 
-		processKeyboardInput();
+		if (!isStoryActive)
+		{
+			processKeyboardInput();
+		}
 
 		//s1 read mouise
 		double xpos, ypos;
@@ -998,494 +1176,629 @@ int main()
 		float enemyBaseY = 0.0f;
 		float attackRange = 15.0f;
 
-
-		if (window.isPressed(GLFW_KEY_E))
+		// GAME LOGIC PAUSE FOR STORY
+		if (!isStoryActive && !isEndingActive)
 		{
-			swingTime += deltaTime * 10.0f;
-
-			if (!task1Completed && currentTask == 0 && enemyAlive)
+			if (window.isPressed(GLFW_KEY_E))
 			{
+				swingTime += deltaTime * 10.0f;
+
+				if (!task1Completed && currentTask == 0 && enemyAlive)
+				{
+					float d = distance(camera.getCameraPosition(), enemyPos);
+					if (d < attackRange)
+					{
+						enemyAlive = false;
+						task1Completed = true;
+
+						currentTask = 1;
+						t2Phase = T2_SHINY_CUBE;
+
+						shinyCubePos = enemyPos + glm::vec3(-25.0f, 0.0f, 0.0f);
+						shinyCubePos.y =
+							getGroundHeight(shinyCubePos.x, shinyCubePos.z) + 3.0f;
+
+						std::cout << "Task 1 complete!" << std::endl;
+						std::cout << "Task 2 started." << std::endl;
+
+						// Trigger Dialogue
+						storyLines = warlockLines1;
+						currentStoryLine = 0;
+						isStoryActive = true;
+					}
+					else {
+						std::cout << "Too far to attack." << std::endl;
+					}
+				}
+				/*swingTime += deltaTime * 10.0f;
 				float d = distance(camera.getCameraPosition(), enemyPos);
 				if (d < attackRange)
 				{
 					enemyAlive = false;
-					task1Completed = true;
-
 					currentTask = 1;
-					t2Phase = T2_SHINY_CUBE;
-
-					shinyCubePos = enemyPos + glm::vec3(-25.0f, 0.0f, 0.0f);
-					shinyCubePos.y =
-						getGroundHeight(shinyCubePos.x, shinyCubePos.z) + 3.0f;
 
 					std::cout << "Task 1 complete!" << std::endl;
-					std::cout << "Task 2 started." << std::endl;
+					std::cout << "Task 2: Explore the arena." << std::endl;
+
+					t2Phase = T2_SHOW_SAMPLE;
+					t2Timer = 5.0f;
+					//t2BasePos = enemyPos + glm::vec3(-20.0f, 0.0f, 0.0f);
+					t2BasePos = glm::vec3(-20.0f, 0.0f, 20.0f); // Safe spot
+
+					t2Slots.clear();
+					shinyCubePos.y = getGroundHeight(shinyCubePos.x, shinyCubePos.z) + 3.0f;
 				}
 				else {
 					std::cout << "Too far to attack." << std::endl;
-				}
-			}
-			/*swingTime += deltaTime * 10.0f;
-			float d = distance(camera.getCameraPosition(), enemyPos);
-			if (d < attackRange)
-			{
-				enemyAlive = false;
-				currentTask = 1;
-
-				std::cout << "Task 1 complete!" << std::endl;
-				std::cout << "Task 2: Explore the arena." << std::endl;
-
-				t2Phase = T2_SHINY_CUBE;
-				shinyCubePos = enemyPos + glm::vec3(-25.0f, 0.0f, 0.0f);
-				shinyCubePos.y = getGroundHeight(shinyCubePos.x, shinyCubePos.z) + 3.0f;
+				}*/
 			}
 			else {
-				std::cout << "Too far to attack." << std::endl;
-			}*/
-		}
-		else {
-			//swingTime = 0.0f;
-			// Smoothly reset instead of snapping
-			swingTime = glm::max(swingTime - deltaTime * 15.0f, 0.0f);
-		}
-		enemyPos.y = enemyBaseY + sin(glfwGetTime()) * 2.0f;
-
-
-		// TASK 2 LOGIC         <<<<<<<<<<<<<<<<<<<<<<<<<<
-
-		static std::vector<glm::vec3> t2Slots; // Store slot positions
-
-		//if (currentTask == 1 && t2Phase == T2_SHINY_CUBE)
-		if (t2Phase == T2_SHINY_CUBE)
-		{
-			if (distance(camera.getCameraPosition(), shinyCubePos) < 15.0f)
-			{
-				std::cout << "Task 2 Started! Memorize the order!" << std::endl;
-				t2Phase = T2_SHOW_SAMPLE;
-				t2Timer = 5.0f;
-				t2BasePos = enemyPos + glm::vec3(-20.0f, 0.0f, 0.0f);
-
-				t2Slots.clear();
-				puzzleCubes.clear();
-				t2TargetOrder.clear();
-				t2UserOrder.clear();
-
-				std::vector<int> types = { 0, 1, 2, 3 };
-				// Simple shuffle
-				for (int i = 0; i < 10; i++) {
-					int r1 = rand() % 4;
-					int r2 = rand() % 4;
-					std::swap(types[r1], types[r2]);
-				}
-
-				t2TargetOrder = types;
-
-				// Align along Z axis
-				glm::vec3 right = glm::vec3(0.0f, 0.0f, 1.0f);
-
-				for (int i = 0; i < 4; i++)
-				{
-					PuzzleCube pc;
-					pc.type = types[i];
-					glm::vec3 slotPos = t2BasePos + right * ((i - 1.5f) * 6.5f);
-					slotPos.y = getGroundHeight(slotPos.x, slotPos.z) + 2.0f;
-
-					pc.pos = slotPos;
-					pc.targetPos = slotPos; // original slot
-					pc.collected = false;
-
-					puzzleCubes.push_back(pc);
-					t2Slots.push_back(slotPos);
-				}
-				collectedCubesCount = 0;
+				//swingTime = 0.0f;
+				// Smoothly reset instead of snapping
+				swingTime = glm::max(swingTime - deltaTime * 15.0f, 0.0f);
 			}
-		}
-		else if (t2Phase == T2_SHOW_SAMPLE)
-		{
-			t2Timer -= deltaTime;
-			if (t2Timer <= 0.0f)
-			{
-				std::cout << "Scattered! Find them!" << std::endl;
-				t2Phase = T2_SCATTERED;
-				for (auto& pc : puzzleCubes)
-				{
-					pc.pos = spawnRandomCubeSafe(treeColliders, t2BasePos, 40.0f);
-					pc.collected = false;
-				}
-				collectedCubesCount = 0;
-				t2UserOrder.clear();
-			}
-		}
-		else if (t2Phase == T2_SCATTERED)
-		{
-			if (collectedCubesCount < 4 && window.isPressed(GLFW_KEY_E))
-			{
-				bool found = false;
-				for (auto& pc : puzzleCubes)
-				{
-					if (!pc.collected && distance(camera.getCameraPosition(), pc.pos) < 15.0f)
-					{
-						pc.collected = true;
-						pc.pos = t2Slots[collectedCubesCount]; // Move to next available slot
+			enemyPos.y = enemyBaseY + sin(glfwGetTime()) * 2.0f;
 
-						t2UserOrder.push_back(pc.type);
 
-						collectedCubesCount++;
-						found = true;
-						std::cout << "Collected cube! " << collectedCubesCount << "/4" << std::endl;
-						break; // Collect one at a time
-					}
-				}
+			// TASK 2 LOGIC         <<<<<<<<<<<<<<<<<<<<<<<<<<
 
-				if (collectedCubesCount >= 4)
-				{
-					// VERIFY ORDER
-					bool correct = true;
-					for (size_t i = 0; i < 4; ++i) {
-						if (t2UserOrder[i] != t2TargetOrder[i]) {
-							correct = false;
-							break;
-						}
-					}
+			static std::vector<glm::vec3> t2Slots; // Store slot positions
 
-					if (correct)
-					{
-						t2Phase = T2_COMPLETED;
-						std::cout << "Task 2 Completed! Correct Order!" << std::endl;
-						currentTask = 2;
-						std::cout << "Task 3: Claim the Lunar Blade." << std::endl;
-					}
-					else
-					{
-						std::cout << "Wrong Order! Resetting in 5 seconds..." << std::endl;
-						t2Phase = T2_FAILED_WAIT;
-						t2Timer = 5.0f;
-					}
-				}
-			}
-		}
-		else if (t2Phase == T2_FAILED_WAIT)
-		{
-			t2Timer -= deltaTime;
-			if (t2Timer <= 0.0f)
-			{
-				std::cout << "Scattering Again..." << std::endl;
-				// Reset Logic
-				t2Phase = T2_SCATTERED;
-				// Re-scatter cubes
-				for (auto& pc : puzzleCubes)
-				{
-					pc.pos = spawnRandomCubeSafe(treeColliders, t2BasePos, 40.0f);
-					pc.collected = false;
-				}
-				collectedCubesCount = 0;
-				t2UserOrder.clear();
-			}
-		}
-
-		// TASK 2 RENDER
-
-		if (t2Phase != T2_IDLE)
-		{
-			// Shiny Cube
+			//if (currentTask == 1 && t2Phase == T2_SHINY_CUBE)
 			if (t2Phase == T2_SHINY_CUBE)
 			{
-				sunShader.use(); // Draw as bright object
-				glm::mat4 model = glm::mat4(1.0f);
-				model = glm::translate(model, shinyCubePos);
-				model = glm::scale(model, glm::vec3(1.5f));
-
-				glm::mat4 mvp = ProjectionMatrix * ViewMatrix * model;
-				glUniformMatrix4fv(glGetUniformLocation(sunShader.getId(), "MVP"), 1, GL_FALSE, &mvp[0][0]);
-
-				box.draw(sunShader);
-				shader.use(); // Restore
-			}
-
-
-			// Placeholders
-			if (t2Phase == T2_SCATTERED || t2Phase == T2_COMPLETED || t2Phase == T2_FAILED_WAIT)
-			{
-				// Draw small markers for slots
-				for (const auto& slot : t2Slots)
+				if (distance(camera.getCameraPosition(), shinyCubePos) < 15.0f)
 				{
-					glm::mat4 model = glm::mat4(1.0f);
-					model = glm::translate(model, slot);
-					// Placeholders: Square base (1.0 x 1.0) to match cubes
-					model = glm::scale(model, glm::vec3(1.0f, 0.2f, 1.0f));
+					std::cout << "Task 2 Started! Memorize the order!" << std::endl;
+					t2Phase = T2_SHOW_SAMPLE;
+					t2Timer = 5.0f;
+					t2BasePos = glm::vec3(-20.0f, 0.0f, 20.0f); // Safe spot
 
-					glm::mat4 mvp = ProjectionMatrix * ViewMatrix * model;
-					glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &mvp[0][0]);
-					glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
-					glActiveTexture(GL_TEXTURE0);
-					glBindTexture(GL_TEXTURE_2D, redTex);
-					box.draw(shader);
-				}
-			}
+					t2Slots.clear();
+					puzzleCubes.clear();
+					t2TargetOrder.clear();
+					t2UserOrder.clear();
 
-			//// Cubes
-			//if (t2Phase != T2_SHINY_CUBE)
-			//{
-			//	for (auto& pc : puzzleCubes)
-			//	{
-			//		GLuint tID = tex;
-			//		if (pc.type == 0) tID = tex;  // Wood
-			//		if (pc.type == 1) tID = tex2; // Rock
-			//		if (pc.type == 2) tID = tex5; // metal
-			//		if (pc.type == 3) tID = tex4; // Orange2
-
-			//		glActiveTexture(GL_TEXTURE0);
-			//		glBindTexture(GL_TEXTURE_2D, tID);
-
-			//		glm::mat4 model = glm::mat4(1.0f);
-			//		model = glm::translate(model, pc.pos);
-			//		model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f)); 
-
-			//		glm::mat4 mvp = ProjectionMatrix * ViewMatrix * model; // Fixed identifier case
-
-			//		glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &mvp[0][0]);
-			//		glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
-
-			//		box.draw(shader);
-			//	}
-			//}
-
-			// Shapes (Task 2)
-			if (t2Phase != T2_SHINY_CUBE)
-			{
-				for (auto& pc : puzzleCubes)
-				{
-					// ----- Texture -----
-					GLuint tID = redTex;
-					if (pc.type == 0) tID = redTex;   // Wood
-					if (pc.type == 1) tID = blueTex;  // Rock
-					if (pc.type == 2) tID = greenTex;  // Metal
-					if (pc.type == 3) tID = yellowTex2;  // Orange
-
-					glActiveTexture(GL_TEXTURE0);
-					glBindTexture(GL_TEXTURE_2D, tID);
-
-					glm::mat4 model = glm::mat4(1.0f);
-					/*model = glm::translate(model, pc.pos);*/
-					// Lift shapes above ground so they don't clip
-					glm::vec3 liftedPos = pc.pos;
-					liftedPos.y += 1.2f;   // 👈 adjust if needed
-					model = glm::translate(model, liftedPos);
-
-					// Per-shape scaling (Force 1.0f for Cube)
-					model = glm::scale(model, glm::vec3(1.0f));
-
-					glm::mat4 mvp = ProjectionMatrix * ViewMatrix * model;
-
-					glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &mvp[0][0]);
-					glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
-
-					// ----- SHAPE SELECT -----
-					// Always draw cube as requested
-					box.draw(shader);
-				}
-			}
-
-		}
-
-
-		//task3 logic
-		if (currentTask == 2 && !swordCollected)
-		{
-			// ----- Stone Pedestal -----
-			glm::mat4 pedestalModel = glm::mat4(1.0f);
-			pedestalModel = glm::translate(
-				pedestalModel,
-				pedestalPos + glm::vec3(0.0f, 4.0f, 0.0f)
-			);
-			pedestalModel = glm::scale(pedestalModel, glm::vec3(6.0f, 4.0f, 6.0f));
-
-			glm::mat4 pedestalMVP = ProjectionMatrix * ViewMatrix * pedestalModel;
-
-			glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &pedestalMVP[0][0]);
-			glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &pedestalModel[0][0]);
-
-			glBindTexture(GL_TEXTURE_2D, metalTex); // metal/stone texture
-			box.draw(shader);
-
-
-
-
-			swordHoverTime += deltaTime;
-
-			float distToSword = distance(
-				camera.getCameraPosition(),
-				pedestalPos
-			);
-
-			if (distToSword < 20.0f)
-			{
-				std::cout << "Press E to claim the Lunar Blade" << std::endl;
-
-				if (window.isPressed(GLFW_KEY_E))
-				{
-					swordCollected = true;
-					currentTask = 3;
-					currentBladeTex = lunarBladeTex; // SWITCH PLAYER SWORD
-					std::cout << "Lunar Blade secured!" << std::endl;
-					std::cout << "Task 3 Completed!" << std::endl;
-					std::cout << "Task 4: Defeat the Shadow Wizard!" << std::endl;
-
-
-					// INIT TASK 4
-					t4WizardPos = pedestalPos;
-					t4WizardPos.z -= 40.0f; // "Further" behind the sword
-					t4WizardPos.y = getGroundHeight(t4WizardPos.x, t4WizardPos.z);
-					t4WizardAlive = true;
-					t4MiniGameActive = false;
-					t4BarPos = -0.9f; // Start at left (unsafe)
-				}
-			}
-		}
-
-		// TASK 4 LOGIC
-		if (currentTask == 3 && t4WizardAlive)
-		{
-			float distToWiz = distance(camera.getCameraPosition(), t4WizardPos);
-			if (distToWiz < 30.0f)
-			{
-				t4MiniGameActive = true;
-				// Animate Bar
-				t4BarPos += t4BarSpeed * t4BarDir * deltaTime;
-				if (t4BarPos > 1.0f) {
-					t4BarPos = 1.0f; t4BarDir = -1.0f;
-				}
-				if (t4BarPos < -1.0f) {
-					t4BarPos = -1.0f; t4BarDir = 1.0f;
-				}
-
-				// Check Input
-				if (window.isPressed(GLFW_KEY_E))
-				{
-					// Check if inside safe zone (centered at 0)
-					if (abs(t4BarPos) < (t4SafeZoneWidth * 0.5f)) // Assuming width is total width
-					{
-						std::cout << "CRITICAL HIT!" << std::endl;
-
-						// Simulate Attack Lunge
-						glm::vec3 killPos = t4WizardPos;
-						killPos.y += playerHeight;
-						camera.setCameraPosition(killPos);
-
-						t4WizardAlive = false;
-						t4MiniGameActive = false;
-						currentTask = 4;
-						std::cout << "Task 4 Completed! YOU WIN!" << std::endl;
-
-						// INIT TASK 5
-						std::cout << "FINAL TASK: THE DARK WIZARD APPEARS!" << std::endl;
-						std::cout << "Hide behind trees! Attack when he rests!" << std::endl;
-						currentTask = 5;
-						t5BossPos = glm::vec3(0.0f, 0.0f, 150.0f); // Far away
-						t5BossPos.y = getGroundHeight(t5BossPos.x, t5BossPos.z);
-						t5BossAlive = true;
-						t5PlayerLives = 3;
-						t5BossHealth = 10;
-						t5CycleTimer = 10.0f; // Start with 10s attack
-						t5IsAttacking = true;
-						t5Projectiles.clear();
+					std::vector<int> types = { 0, 1, 2, 3 };
+					// Simple shuffle
+					for (int i = 0; i < 10; i++) {
+						int r1 = rand() % 4;
+						int r2 = rand() % 4;
+						std::swap(types[r1], types[r2]);
 					}
-					else
+
+					t2TargetOrder = types;
+
+					// Align along Z axis
+					glm::vec3 right = glm::vec3(0.0f, 0.0f, 1.0f);
+
+					for (int i = 0; i < 4; i++)
 					{
-						t4BarPos = -1.0f;
+						PuzzleCube pc;
+						pc.type = types[i];
+						glm::vec3 slotPos = t2BasePos + right * ((i - 1.5f) * 6.5f);
+						slotPos.y = getGroundHeight(slotPos.x, slotPos.z) + 2.0f;
+
+						pc.pos = slotPos;
+						pc.targetPos = slotPos; // original slot
+						pc.collected = false;
+
+						puzzleCubes.push_back(pc);
+						t2Slots.push_back(slotPos);
 					}
+					collectedCubesCount = 0;
 				}
 			}
-			else
+			else if (t2Phase == T2_SHOW_SAMPLE)
 			{
-				t4MiniGameActive = false;
-			}
-		}
-
-		// TASK 5 LOGIC
-		if (currentTask == 5 && t5BossAlive && !t5GameOver && !t5GameWon)
-		{
-			// Cycle Logic
-			t5CycleTimer -= deltaTime;
-			if (t5CycleTimer <= 0.0f)
-			{
-				t5IsAttacking = !t5IsAttacking;
-				t5CycleTimer = t5IsAttacking ? 10.0f : 5.0f;
-				if (t5IsAttacking) std::cout << "Boss is ATTACKING! (10s)" << std::endl;
-				else               std::cout << "Boss is RESTING! (5s) ATTACK NOW!" << std::endl;
-			}
-
-			// Shooting Logic
-			if (t5IsAttacking)
-			{
-				t5ShootCooldown -= deltaTime;
-				if (t5ShootCooldown <= 0.0f)
+				t2Timer -= deltaTime;
+				if (t2Timer <= 0.0f)
 				{
-					t5ShootCooldown = 0.5f; // Fire every 0.5s
-					Projectile p;
-					p.pos = t5BossPos + glm::vec3(0, 8, 0); // Shoot from staff/hand height
-					p.dir = glm::normalize(camera.getCameraPosition() - p.pos);
-					p.active = true;
-					t5Projectiles.push_back(p);
-				}
-			}
-
-			// Update Projectiles
-			for (auto& p : t5Projectiles)
-			{
-				if (!p.active) continue;
-
-				float speed = 40.0f;
-				p.pos += p.dir * speed * deltaTime;
-
-				// Collision with Player
-				if (distance(p.pos, camera.getCameraPosition()) < 3.0f)
-				{
-					p.active = false;
-					t5PlayerLives--;
-					std::cout << "HIT! Lives left: " << t5PlayerLives << std::endl;
-					if (t5PlayerLives <= 0)
+					std::cout << "Scattered! Find them!" << std::endl;
+					t2Phase = T2_SCATTERED;
+					for (auto& pc : puzzleCubes)
 					{
-						t5GameOver = true;
-						std::cout << "GAME OVER! You died." << std::endl;
+						pc.pos = spawnRandomCubeSafe(treeColliders, t2BasePos, 40.0f);
+						pc.collected = false;
 					}
+					collectedCubesCount = 0;
+					t2UserOrder.clear();
 				}
-
-				// Collision with Trees
-				if (checkTreeCollision(p.pos, treeColliders))
-				{
-					p.active = false;
-				}
-
-				// Cleanup distance
-				if (distance(p.pos, t5BossPos) > 300.0f) p.active = false;
 			}
-
-			// Player Attack Logic
-			if (!t5IsAttacking && window.isPressed(GLFW_KEY_E) && !t5GameWon)
+			else if (t2Phase == T2_SCATTERED)
 			{
-				// Must be close enough?
-				if (distance(camera.getCameraPosition(), t5BossPos) < 30.0f)
+				if (collectedCubesCount < 4 && window.isPressed(GLFW_KEY_E))
 				{
-					// Simple "debounce" or rapid click handling? "Press E 10 times"
-					// We'll use a small timer to prevent 1-frame insta-kill 
-					static float hitTimer = 0.0f;
-					hitTimer -= deltaTime;
-					if (hitTimer <= 0.0f)
+					bool found = false;
+					for (auto& pc : puzzleCubes)
 					{
-						t5BossHealth--;
-						hitTimer = 0.3f; // Max 3 hits per second
-						std::cout << "Boss Hit! HP: " << t5BossHealth << std::endl;
-						if (t5BossHealth <= 0)
+						if (!pc.collected && distance(camera.getCameraPosition(), pc.pos) < 15.0f)
 						{
-							t5BossAlive = false;
-							t5GameWon = true;
-							std::cout << "VICTORY! The Wizard is defeated!" << std::endl;
+							pc.collected = true;
+							pc.pos = t2Slots[collectedCubesCount]; // Move to next available slot
+
+							t2UserOrder.push_back(pc.type);
+
+							collectedCubesCount++;
+							found = true;
+							std::cout << "Collected cube! " << collectedCubesCount << "/4" << std::endl;
+							break; // Collect one at a time
+						}
+					}
+
+					if (collectedCubesCount >= 4)
+					{
+						// VERIFY ORDER
+						bool correct = true;
+						for (size_t i = 0; i < 4; ++i) {
+							if (t2UserOrder[i] != t2TargetOrder[i]) {
+								correct = false;
+								break;
+							}
+						}
+
+						if (correct)
+						{
+							t2Phase = T2_COMPLETED;
+							std::cout << "Task 2 Completed! Correct Order!" << std::endl;
+							currentTask = 2;
+							std::cout << "Task 3: Claim the Lunar Blade." << std::endl;
+
+							// Trigger Dialogue
+							storyLines = warlockLines2;
+							currentStoryLine = 0;
+							isStoryActive = true;
+						}
+						else
+						{
+							std::cout << "Wrong Order! Resetting in 5 seconds..." << std::endl;
+							t2Phase = T2_FAILED_WAIT;
+							t2Timer = 5.0f;
 						}
 					}
 				}
 			}
-		}
+			else if (t2Phase == T2_FAILED_WAIT)
+			{
+				t2Timer -= deltaTime;
+				if (t2Timer <= 0.0f)
+				{
+					std::cout << "Scattering Again..." << std::endl;
+					// Reset Logic
+					t2Phase = T2_SCATTERED;
+					// Re-scatter cubes
+					for (auto& pc : puzzleCubes)
+					{
+						pc.pos = spawnRandomCubeSafe(treeColliders, t2BasePos, 40.0f);
+						pc.collected = false;
+					}
+					collectedCubesCount = 0;
+					t2UserOrder.clear();
+				}
+			}
+
+			// TASK 2 RENDER
+
+			if (t2Phase != T2_IDLE)
+			{
+				// Shiny Cube
+				if (t2Phase == T2_SHINY_CUBE)
+				{
+					sunShader.use(); // Draw as bright object
+					glm::mat4 model = glm::mat4(1.0f);
+					model = glm::translate(model, shinyCubePos);
+					model = glm::scale(model, glm::vec3(1.5f));
+
+					glm::mat4 mvp = ProjectionMatrix * ViewMatrix * model;
+					glUniformMatrix4fv(glGetUniformLocation(sunShader.getId(), "MVP"), 1, GL_FALSE, &mvp[0][0]);
+
+					box.draw(sunShader);
+					shader.use(); // Restore
+				}
+
+
+				// Placeholders
+				if (t2Phase == T2_SCATTERED || t2Phase == T2_COMPLETED || t2Phase == T2_FAILED_WAIT || t2Phase == T2_SHOW_SAMPLE)
+				{
+					for (const auto& slot : t2Slots)
+					{
+						glm::mat4 model = glm::mat4(1.0f);
+						model = glm::translate(model, slot);
+						model = glm::scale(model, glm::vec3(1.0f, 0.2f, 1.0f));
+
+						// Center the Placeholder (Red Box)
+						// Shift so box center aligns with (0,0,0) before scaling/rotation
+						// But wait, scale is applied before rotation/translation usually in MVP logic here.
+						// We want center of mass at 'slot'.
+						// model = T * S * T_center
+						model = glm::translate(model, glm::vec3(-boxB.center.x, -boxB.minY, -boxB.center.z));
+						// Note: using -minY puts the bottom on the 'slot' Y.
+						// 'slot' is at y=0. So proper.
+
+						glm::mat4 mvp = ProjectionMatrix * ViewMatrix * model;
+						glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &mvp[0][0]);
+						glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
+
+						glActiveTexture(GL_TEXTURE0);
+						glBindTexture(GL_TEXTURE_2D, redTex);
+
+						box.draw(shader);
+					}
+				}
+				//// Cubes
+				//if (t2Phase != T2_SHINY_CUBE)
+				//{
+				//	for (auto& pc : puzzleCubes)
+				//	{
+				//		GLuint tID = tex;
+				//		if (pc.type == 0) tID = tex;  // Wood
+				//		if (pc.type == 1) tID = tex2; // Rock
+				//		if (pc.type == 2) tID = tex5; // metal
+				//		if (pc.type == 3) tID = tex4; // Orange2
+
+				//		glActiveTexture(GL_TEXTURE0);
+				//		glBindTexture(GL_TEXTURE_2D, tID);
+
+				//		glm::mat4 model = glm::mat4(1.0f);
+				//		model = glm::translate(model, pc.pos);
+				//		model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f)); 
+
+				//		glm::mat4 mvp = ProjectionMatrix * ViewMatrix * model; // Fixed identifier case
+
+				//		glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &mvp[0][0]);
+				//		glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
+
+				//		box.draw(shader);
+				//	}
+				//}
+
+			//	// Shapes (Task 2) revin
+			//	if (t2Phase != T2_SHINY_CUBE)
+			//	{
+			//		for (auto& pc : puzzleCubes)
+			//		{
+			//			// ----- Texture -----
+			//			GLuint tID = redTex;
+			//			if (pc.type == 0) tID = redTex;   // Wood
+			//			if (pc.type == 1) tID = blueTex;  // Rock
+			//			if (pc.type == 2) tID = greenTex;  // Metal
+			//			if (pc.type == 3) tID = yellowTex2;  // Orange
+
+			//			glActiveTexture(GL_TEXTURE0);
+			//			glBindTexture(GL_TEXTURE_2D, tID);
+
+			//			glm::mat4 model = glm::mat4(1.0f);
+			//			/*model = glm::translate(model, pc.pos);*/
+			//			// Lift shapes above ground so they don't clip
+			//			glm::vec3 liftedPos = pc.pos;
+			//			liftedPos.y += 1.2f;   // 👈 adjust if needed
+			//			model = glm::translate(model, liftedPos);
+
+			//			// Per-shape scaling (Force 1.0f for Cube)
+			//			model = glm::scale(model, glm::vec3(1.0f));
+
+			//			glm::mat4 mvp = ProjectionMatrix * ViewMatrix * model;
+
+			//			glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &mvp[0][0]);
+			//			glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
+
+			//			// ----- SHAPE SELECT -----
+			//			// Always draw cube as requested
+			//			box.draw(shader);
+			//		}
+			//	}
+
+			//} revin dupa
+
+				// Shapes (Task 2)  -- now using imported OBJ models
+				// Shapes (Task 2)  -- now using imported OBJ models
+				if (t2Phase != T2_SHINY_CUBE)
+				{
+					for (auto& pc : puzzleCubes)
+					{
+						if (pc.collected == false && t2Phase == T2_SHOW_SAMPLE)
+						{
+							// optional: în sample vrei să le vezi în sloturi - deja sunt în pc.pos
+						}
+
+						Mesh* shape = getPuzzleMeshByType(pc.type, flagMesh, ramMesh, trebuchetMesh, catapultMesh, box);
+						MeshBounds b = getBoundsByType(pc.type);
+
+						glm::mat4 model = glm::mat4(1.0f);
+
+						// 1. Position
+						// We want the object to be centered on the platform.
+						// Platform center is at pc.pos (which is the loop var, but we only have platform Y=0 in logic mostly)
+						// But we want to raise it slightly.
+
+						// pc.pos.y is already (ground + 2.0f).
+						// The red platform is a cube scaled by (1, 0.2, 1). Assuming standard cube (-1..1), 
+						// its total height is 2*0.2 = 0.4. Half-height is 0.2.
+						// So the top of the platform is at pc.pos.y + 0.2f.
+
+						float platformTopOffset = 0.2f;
+						model = glm::translate(model, glm::vec3(pc.pos.x, pc.pos.y + platformTopOffset, pc.pos.z));
+
+						// 2. Rotation
+						model = glm::rotate(
+							model,
+							glm::radians((float)glfwGetTime() * 30.0f),
+							glm::vec3(0.0f, 1.0f, 0.0f)
+						);
+
+						// 3. Scale
+						float s = getPuzzleModelScale(pc.type);
+						model = glm::scale(model, glm::vec3(s));
+
+						// 4. Center the Mesh
+						// Use model's native pivot (0,0,0) for X/Z to avoid offset spinning if bounds are weird.
+						// Only correct Y so it sits on the surface.
+						model = glm::translate(model, glm::vec3(0.0f, -b.minY, 0.0f));
+
+						glm::mat4 mvp = ProjectionMatrix * ViewMatrix * model;
+						glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &mvp[0][0]);
+						glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
+
+						// Texture bound (dacă modelele NU au UV-uri / nu ai materiale, asta e ok ca placeholder)
+						glActiveTexture(GL_TEXTURE0);
+						glBindTexture(GL_TEXTURE_2D, yellowTex2);
+
+						shape->draw(shader);
+					}
+				}
+			}
+
+
+
+
+
+
+			//task3 logic
+			if (currentTask == 2 && !swordCollected)
+			{
+				// ----- Stone Pedestal -----
+				/*glm::mat4 pedestalModel = glm::mat4(1.0f);
+				pedestalModel = glm::translate(
+					pedestalModel,
+					pedestalPos + glm::vec3(0.0f, 4.0f, 0.0f)
+				);
+				pedestalModel = glm::scale(pedestalModel, glm::vec3(6.0f, 4.0f, 6.0f));
+
+				glm::mat4 pedestalMVP = ProjectionMatrix * ViewMatrix * pedestalModel;
+
+				glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &pedestalMVP[0][0]);
+				glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &pedestalModel[0][0]);
+
+				glBindTexture(GL_TEXTURE_2D, metalTex); // metal/stone texture
+				box.draw(shader);*/
+
+
+
+
+				swordHoverTime += deltaTime;
+
+				float distToSword = distance(
+					camera.getCameraPosition(),
+					pedestalPos
+				);
+
+				if (distToSword < 20.0f)
+				{
+					std::cout << "Press E to claim the Lunar Blade" << std::endl;
+
+					if (window.isPressed(GLFW_KEY_E))
+					{
+						swordCollected = true;
+						currentTask = 3;
+						currentBladeTex = lunarBladeTex; // SWITCH PLAYER SWORD
+						std::cout << "Lunar Blade secured!" << std::endl;
+						std::cout << "Task 3 Completed!" << std::endl;
+						std::cout << "Task 4: Defeat the Shadow Wizard!" << std::endl;
+
+						// Trigger Dialogue
+						storyLines = warlockLines3;
+						currentStoryLine = 0;
+						isStoryActive = true;
+
+
+						// INIT TASK 4
+						t4WizardPos = pedestalPos;
+						t4WizardPos.z -= 40.0f; // "Further" behind the sword
+						t4WizardPos.y = getGroundHeight(t4WizardPos.x, t4WizardPos.z);
+						t4WizardAlive = true;
+						t4MiniGameActive = false;
+						t4WizardAlive = true;
+						t4MiniGameActive = false;
+						t4BarPos = -0.9f; // Start at left (unsafe)
+						// Reset Task 4 Difficulty
+						t4HitsInfo = 0;
+						t4SafeZoneWidth = 0.20f;
+						t4BarSpeed = 1.0f;
+						t4SafeZoneCenter = 0.0f;
+					}
+				}
+			}
+
+			// TASK 4 LOGIC
+			if (currentTask == 3 && t4WizardAlive)
+			{
+				float distToWiz = distance(camera.getCameraPosition(), t4WizardPos);
+				if (distToWiz < 30.0f)
+				{
+					t4MiniGameActive = true;
+					// Animate Bar
+					t4BarPos += t4BarSpeed * t4BarDir * deltaTime;
+					if (t4BarPos > 1.0f) {
+						t4BarPos = 1.0f; t4BarDir = -1.0f;
+					}
+					if (t4BarPos < -1.0f) {
+						t4BarPos = -1.0f; t4BarDir = 1.0f;
+					}
+
+					// Check Input
+					if (window.isPressed(GLFW_KEY_E))
+					{
+						// Check if inside safe zone (centered at t4SafeZoneCenter)
+						// Distance between bar and target center < half width
+						if (abs(t4BarPos - t4SafeZoneCenter) < (t4SafeZoneWidth * 0.5f))
+						{
+							std::cout << "HIT! (" << (t4HitsInfo + 1) << "/3)" << std::endl;
+							t4HitsInfo++;
+
+							if (t4HitsInfo >= 3)
+							{
+								std::cout << "CRITICAL FINAL HIT!" << std::endl;
+
+								// Simulate Attack Lunge
+								glm::vec3 killPos = t4WizardPos;
+								killPos.y += playerHeight;
+								camera.setCameraPosition(killPos);
+
+								t4WizardAlive = false;
+								t4MiniGameActive = false;
+								currentTask = 4;
+								std::cout << "Task 4 Completed! YOU WIN!" << std::endl;
+
+								// Trigger Dialogue
+								storyLines = warlockLines4;
+								currentStoryLine = 0;
+								isStoryActive = true;
+
+								// INIT TASK 5
+								std::cout << "FINAL TASK: THE DARK WIZARD APPEARS!" << std::endl;
+								std::cout << "Hide behind trees! Attack when he rests!" << std::endl;
+								currentTask = 5;
+								t5BossPos = glm::vec3(0.0f, 0.0f, 150.0f); // Far away
+								t5BossPos.y = getGroundHeight(t5BossPos.x, t5BossPos.z);
+								t5BossAlive = true;
+								t5PlayerLives = 3;
+								t5BossHealth = 10;
+								t5CycleTimer = 10.0f; // Start with 10s attack
+								t5IsAttacking = true;
+								t5Projectiles.clear();
+							}
+							else
+							{
+								// INCREASE DIFFICULTY (BALANCED SCALING)
+								t4SafeZoneWidth *= 0.8f; // 20% smaller
+								t4BarSpeed *= 1.2f;      // 20% faster
+
+								// Random new position [-0.7, 0.7]
+								t4SafeZoneCenter = ((rand() % 140) / 100.0f) - 0.7f;
+
+								t4BarPos = -0.9f; // Reset bar to start
+								std::cout << "Next Stage! Speed: " << t4BarSpeed << " Width: " << t4SafeZoneWidth << std::endl;
+							}
+						}
+						else
+						{
+							std::cout << "MISS! Resetting..." << std::endl;
+							// t4HitsInfo = 0; // REMOVED PENALTY
+							t4BarPos = -1.0f;
+						}
+					}
+				}
+				else
+				{
+					t4MiniGameActive = false;
+				}
+			}
+
+			// TASK 5 LOGIC
+			if (currentTask == 5 && t5BossAlive && !t5GameOver && !t5GameWon)
+			{
+				// Cycle Logic
+				t5CycleTimer -= deltaTime;
+				if (t5CycleTimer <= 0.0f)
+				{
+					t5IsAttacking = !t5IsAttacking;
+					t5CycleTimer = t5IsAttacking ? 10.0f : 5.0f;
+					if (t5IsAttacking) std::cout << "Boss is ATTACKING! (10s)" << std::endl;
+					else               std::cout << "Boss is RESTING! (5s) ATTACK NOW!" << std::endl;
+				}
+
+				// Shooting Logic
+				if (t5IsAttacking)
+				{
+					t5ShootCooldown -= deltaTime;
+					if (t5ShootCooldown <= 0.0f)
+					{
+						t5ShootCooldown = 0.5f; // Fire every 0.5s
+						Projectile p;
+						p.pos = t5BossPos + glm::vec3(0, 8, 0); // Shoot from staff/hand height
+						p.dir = glm::normalize(camera.getCameraPosition() - p.pos);
+						p.active = true;
+						t5Projectiles.push_back(p);
+					}
+				}
+
+				// Update Projectiles
+				for (auto& p : t5Projectiles)
+				{
+					if (!p.active) continue;
+
+					float speed = 40.0f;
+					p.pos += p.dir * speed * deltaTime;
+
+					// Collision with Player
+					if (distance(p.pos, camera.getCameraPosition()) < 3.0f)
+					{
+						p.active = false;
+						t5PlayerLives--;
+						std::cout << "HIT! Lives left: " << t5PlayerLives << std::endl;
+						if (t5PlayerLives <= 0)
+						{
+							t5GameOver = true;
+							std::cout << "GAME OVER! You died." << std::endl;
+						}
+					}
+
+					// Collision with Trees
+					if (checkTreeCollision(p.pos, treeColliders))
+					{
+						p.active = false;
+					}
+
+					// Cleanup distance
+					if (distance(p.pos, t5BossPos) > 300.0f) p.active = false;
+				}
+
+				// Player Attack Logic
+				if (!t5IsAttacking && window.isPressed(GLFW_KEY_E) && !t5GameWon)
+				{
+					// Must be close enough?
+					if (distance(camera.getCameraPosition(), t5BossPos) < 30.0f)
+					{
+						// Simple "debounce" or rapid click handling? "Press E 10 times"
+						// We'll use a small timer to prevent 1-frame insta-kill 
+						static float hitTimer = 0.0f;
+						hitTimer -= deltaTime;
+						if (hitTimer <= 0.0f)
+						{
+							t5BossHealth--;
+							hitTimer = 0.3f; // Max 3 hits per second
+							std::cout << "Boss Hit! HP: " << t5BossHealth << std::endl;
+							if (t5BossHealth <= 0)
+							{
+								t5BossAlive = false;
+								t5GameWon = true;
+								std::cout << "VICTORY! The Wizard is defeated!" << std::endl;
+								isEndingActive = true;
+								currentEndingLine = 0;
+								// Move camera to a "cinematic" position for the ending?
+								// Or just let the player look around.
+								// Let's reset to start position to match "beginning" feel if desired, 
+								// but maybe closer to the princess.
+								camera.setCameraPosition(glm::vec3(0.0f, 10.0f, 50.0f)); // Near the princess spawn
+								camera.setCameraViewDirection(glm::vec3(0.0f, 0.2f, 1.0f)); // Look up/at princess
+
+							}
+						}
+					}
+				}
+			}
+
+		} // END PAUSE FOR STORY
 
 		// ================= TASK 3 RENDER (QUEST SWORD) =================
 		if (currentTask == 2 && !swordCollected)
@@ -1506,7 +1819,7 @@ int main()
 			//glBindTexture(GL_TEXTURE_2D, tex5); // metal/stone texture
 			//box.draw(shader);
 
-			
+
 
 			//float hoverY = sin(swordHoverTime * 2.0f) * 2.0f;
 			float hover = sin(swordHoverTime * 2.5f) * 1.2f;
@@ -1632,8 +1945,9 @@ int main()
 
 				// --- 2. Safe Zone (Green) ---
 				model = glm::mat4(1.0f);
-				model = glm::translate(model, glm::vec3(0.0f, -0.6f, 0.01f)); // Slightly in front
-				model = glm::scale(model, glm::vec3(t4SafeZoneWidth * 0.8f, 0.11f, 1.0f)); // Green Zone
+				// Move to t4SafeZoneCenter
+				model = glm::translate(model, glm::vec3(t4SafeZoneCenter * 0.8f, -0.6f, 0.01f)); // 0.8 scales to visual bar width
+				model = glm::scale(model, glm::vec3(t4SafeZoneWidth * 0.8f, 0.11f, 1.0f));
 
 				MVP = orthoProj * identityView * model;
 				glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &MVP[0][0]);
@@ -1695,21 +2009,30 @@ int main()
 			}
 
 			// 2. Render Projectiles
-			sunShader.use(); // Unlit
-			// Purple Color
-			// glUniform4f(glGetUniformLocation(sunShader.getId(), "OverrideColor"), 0.6f, 0.0f, 1.0f, 1.0f); 
+			// Use standard shader for lighting + texture
+			shader.use();
+			glUniform3f(glGetUniformLocation(shader.getId(), "lightPos"), lightPos.x, lightPos.y, lightPos.z);
+			glUniform3f(glGetUniformLocation(shader.getId(), "viewPos"), camera.getCameraPosition().x, camera.getCameraPosition().y, camera.getCameraPosition().z);
 
 			for (const auto& p : t5Projectiles)
 			{
 				if (!p.active) continue;
 				glm::mat4 model = glm::mat4(1.0f);
 				model = glm::translate(model, p.pos);
-				model = glm::scale(model, glm::vec3(0.5f, 0.5f, 2.0f)); // Long projectile
-				model = glm::rotate(model, atan2(p.dir.x, p.dir.z), glm::vec3(0, 1, 0)); // Rotate to face dir
+				model = glm::rotate(model, atan2(p.dir.x, p.dir.z), glm::vec3(0, 1, 0)); // Face direction
+				model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0, 1, 0)); // Rotate 90 to align -X axis model to Z-axis
+				// Fireball usually doesn't need extra rotation if spherical.
+				// Resetting scale to 1.0f to verify size first.
+				model = glm::scale(model, glm::vec3(1.0f));
 
 				glm::mat4 MVP = ProjectionMatrix * ViewMatrix * model;
-				glUniformMatrix4fv(glGetUniformLocation(sunShader.getId(), "MVP"), 1, GL_FALSE, &MVP[0][0]);
-				box.draw(sunShader);
+				glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &MVP[0][0]);
+				glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
+
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, metalTex); // Use metal (grey) texture
+
+				projectileMesh.draw(shader);
 			}
 
 			// 3. UI (Health Bars)
@@ -1839,10 +2162,34 @@ int main()
 
 		glm::mat4 VP = proj * view;
 
+		if (t5GameWon)
+		{
+			// Sky animation: Rotate the view matrix for the skybox
+			float skySpeed = 5.0f; // Rotation speed
+			float angle = glm::radians((float)glfwGetTime() * skySpeed);
+			// Apply rotation to the view component of VP implies rotating the skybox relative to camera
+			// We can just rotate the view matrix before multiplying
+			view = glm::rotate(view, angle, glm::vec3(0.0f, 1.0f, 0.0f));
+			VP = proj * view;
+		}
+
 		glUniformMatrix4fv(
 			glGetUniformLocation(skyboxShader.getId(), "VP"),
 			1, GL_FALSE, &VP[0][0]
 		);
+
+		if (!t5GameWon)
+		{
+			// Creepy Dark Sky
+			glUniform3f(glGetUniformLocation(skyboxShader.getId(), "bottomColor"), 0.1f, 0.0f, 0.0f);
+			glUniform3f(glGetUniformLocation(skyboxShader.getId(), "topColor"), 0.05f, 0.05f, 0.15f);
+		}
+		else
+		{
+			// Happy Blue Sky
+			glUniform3f(glGetUniformLocation(skyboxShader.getId(), "bottomColor"), 0.6f, 0.8f, 1.0f);
+			glUniform3f(glGetUniformLocation(skyboxShader.getId(), "topColor"), 0.2f, 0.4f, 0.8f);
+		}
 
 		glBindVertexArray(skyboxVAO);
 		glActiveTexture(GL_TEXTURE0);
@@ -1855,7 +2202,7 @@ int main()
 		glDepthMask(GL_TRUE);
 		glDepthFunc(GL_LESS);
 		// ---------- END SKYBOX ----------
-		
+
 
 
 
@@ -1909,6 +2256,138 @@ int main()
 			ImGui::TextColored(ImVec4(0, 1, 0, 1), "YOU WIN!");
 		}
 		ImGui::End();
+
+		// ===== STORY TELLING UI =====
+		if (isStoryActive)
+		{
+			// Render Princess
+			// Move to EYE LEVEL to be 100% sure she is visible.
+			// Camera is at (0, 50, 100).
+			// We place her at (0, 40, 90).
+			glm::mat4 model = glm::mat4(1.0f);
+			model = glm::translate(model, glm::vec3(0.0f, 40.0f, 90.0f));
+			model = glm::scale(model, glm::vec3(15.0f));
+			// Rotate to face player (Player at +Z looking -Z)
+			model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0, 1, 0));
+
+			glm::mat4 MVP = ProjectionMatrix * ViewMatrix * model;
+			glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &MVP[0][0]);
+			glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
+
+			// Force texture
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, wizRobeTex);
+			princessMesh.draw(shader);
+
+			// --- DEBUG BOX ---
+			// If you see this box but not the princess, the princess mesh is broken.
+			glm::mat4 boxModel = glm::mat4(1.0f);
+			boxModel = glm::translate(boxModel, glm::vec3(6.0f, 40.0f, 90.0f)); // To the right
+			boxModel = glm::scale(boxModel, glm::vec3(2.0f));
+
+			MVP = ProjectionMatrix * ViewMatrix * boxModel;
+			glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &MVP[0][0]);
+			glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &boxModel[0][0]);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, grassTex); // Bright Green Box
+			box.draw(shader);
+
+
+			// Check E input to skip
+			bool ePressed = window.isPressed(GLFW_KEY_E);
+			if (ePressed && !eKeyPressedLastFrame)
+			{
+				currentStoryLine++;
+				if (currentStoryLine >= storyLines.size())
+				{
+					isStoryActive = false;
+				}
+			}
+			eKeyPressedLastFrame = ePressed;
+
+			if (isStoryActive) // Double check incase it just closed
+			{
+				ImGui::SetNextWindowPos(ImVec2(window.getWidth() / 2 - 250, window.getHeight() - 200));
+				ImGui::SetNextWindowSize(ImVec2(500, 150));
+
+				ImGui::Begin("Story", nullptr,
+					ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+
+				StoryLine& line = storyLines[currentStoryLine];
+
+				ImGui::TextColored(ImVec4(line.color.r, line.color.g, line.color.b, 1.0f), "%s:", line.speaker.c_str());
+				ImGui::Separator();
+				ImGui::TextWrapped("%s", line.text.c_str());
+				ImGui::Separator();
+				ImGui::TextDisabled("(Press 'E' to continue)");
+
+				ImGui::End();
+			}
+		}
+
+
+		// ===== ENDING STORY UI =====
+		if (isEndingActive)
+		{
+			// Render Princess
+			glm::mat4 model = glm::mat4(1.0f);
+			model = glm::translate(model, glm::vec3(0.0f, 40.0f, 90.0f));
+			model = glm::scale(model, glm::vec3(15.0f));
+			model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0, 1, 0));
+
+			glm::mat4 MVP = ProjectionMatrix * ViewMatrix * model;
+			glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &MVP[0][0]);
+			glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, wizRobeTex);
+			princessMesh.draw(shader);
+
+			// Debug Box
+			glm::mat4 boxModel = glm::mat4(1.0f);
+			boxModel = glm::translate(boxModel, glm::vec3(6.0f, 40.0f, 90.0f));
+			boxModel = glm::scale(boxModel, glm::vec3(2.0f));
+			MVP = ProjectionMatrix * ViewMatrix * boxModel;
+			glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &MVP[0][0]);
+			glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &boxModel[0][0]);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, grassTex);
+			box.draw(shader);
+
+
+			// Check E input
+			bool ePressed = window.isPressed(GLFW_KEY_E);
+			if (ePressed && !eKeyPressedLastFrame)
+			{
+				currentEndingLine++;
+				if (currentEndingLine >= endStoryLines.size())
+				{
+					isEndingActive = false;
+				}
+			}
+			eKeyPressedLastFrame = ePressed;
+
+			if (isEndingActive)
+			{
+				ImGui::SetNextWindowPos(ImVec2(window.getWidth() / 2 - 250, window.getHeight() - 200));
+				ImGui::SetNextWindowSize(ImVec2(500, 150));
+
+				ImGui::Begin("Ending", nullptr,
+					ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+
+				StoryLine& line = endStoryLines[currentEndingLine];
+
+				ImGui::TextColored(ImVec4(line.color.r, line.color.g, line.color.b, 1.0f), "%s:", line.speaker.c_str());
+				ImGui::Separator();
+				ImGui::TextWrapped("%s", line.text.c_str());
+				ImGui::Separator();
+				ImGui::TextDisabled("(Press 'E' to continue)");
+
+				ImGui::End();
+			}
+		}
+
 		// ===== IMGUI RENDER =====
 		ImGui::Render();
 
@@ -1920,6 +2399,7 @@ int main()
 		window.update();
 	}
 }
+
 
 void processKeyboardInput()
 {
@@ -1974,15 +2454,3 @@ void processKeyboardInput()
 	}
 }
 
-
-//s1 disabled
-// !!!!!!!!!!!!!!keep just in case we need this!!!!!!!!!!!!!!!!!!!!!!!!
-////rotation
-//if (window.isPressed(GLFW_KEY_LEFT))	
-//	camera.rotateOy(cameraSpeed);
-//if (window.isPressed(GLFW_KEY_RIGHT))
-//	camera.rotateOy(-cameraSpeed);
-//if (window.isPressed(GLFW_KEY_UP))
-//	camera.rotateOx(cameraSpeed);
-//if (window.isPressed(GLFW_KEY_DOWN))
-//	camera.rotateOx(-cameraSpeed);

@@ -67,6 +67,13 @@ struct Texture
 class Mesh
 {
 	public:
+		std::vector<Vertex>& getVertices();  // declaration
+		void reuploadBuffers();              // declaration
+
+		const std::vector<Vertex>& getVertices() const { return vertices; }
+
+
+
 		std::vector<Vertex> vertices;
 		std::vector<int> indices;
 		std::vector<Texture> textures;

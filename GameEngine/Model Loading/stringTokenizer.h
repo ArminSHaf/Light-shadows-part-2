@@ -1,46 +1,54 @@
 #pragma once
-#include <sstream>
-#include <fstream>
-#include <iostream>
 #include <string>
 #include <vector>
+#include <cstdlib>
 
 //helper functions
-float _stringToFloat(const std::string &source) {
-	std::stringstream ss(source.c_str());
-	float result;
-	ss >> result;
-	return result;
+inline float _stringToFloat(const std::string &source) {
+	return std::strtof(source.c_str(), NULL);
 }
 
-unsigned int _stringToUint(const std::string &source) {
-	std::stringstream ss(source.c_str());
-	unsigned int result;
-	ss >> result;
-	return result;
+inline unsigned int _stringToUint(const std::string &source) {
+	return (unsigned int)std::strtoul(source.c_str(), NULL, 10);
 }
 
-int _stringToInt(const std::string &source) {
-	std::stringstream ss(source.c_str());
-	int result;
-	ss >> result;
-	return result;
+inline int _stringToInt(const std::string &source) {
+	return (int)std::strtol(source.c_str(), NULL, 10);
 }
 
-void _stringTokenize(const std::string &source, std::vector<std::string> &tokens) {
+inline void _stringTokenize(const std::string &source, std::vector<std::string> &tokens) {
 	tokens.clear();
-	std::string aux = source;
-	for (unsigned int i = 0; i<aux.size(); i++) if (aux[i] == '\t' || aux[i] == '\n') aux[i] = ' ';
-	std::stringstream ss(aux, std::ios::in);
-	while (ss.good()) {
-		std::string s;
-		ss >> s;
-		if (s.size()>0) tokens.push_back(s);
+	const char* str = source.c_str();
+	
+	while (*str) {
+		// Skip whitespace
+		while (*str && (*str == ' ' || *str == '\t' || *str == '\n')) str++;
+		
+		if (!*str) break;
+		
+		const char* start = str;
+		// Find end of token
+		while (*str && *str != ' ' && *str != '\t' && *str != '\n') str++;
+		
+		tokens.emplace_back(start, str - start);
 	}
 }
 
-void _faceTokenize(const std::string &source, std::vector<std::string> &tokens) {
-	std::string aux = source;
-	for (unsigned int i = 0; i<aux.size(); i++) if (aux[i] == '\\' || aux[i] == '/') aux[i] = ' ';
-	_stringTokenize(aux, tokens);
+inline void _faceTokenize(const std::string &source, std::vector<std::string> &tokens) {
+	tokens.clear();
+	const char* str = source.c_str();
+	
+	// Treat / and \ as separators
+	while (*str) {
+		// Skip separators
+		while (*str && (*str == '/' || *str == '\\')) str++;
+		
+		if (!*str) break;
+		
+		const char* start = str;
+		// Find end of token
+		while (*str && *str != '/' && *str != '\\') str++;
+		
+		tokens.emplace_back(start, str - start);
+	}
 }

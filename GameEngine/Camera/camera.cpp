@@ -1,4 +1,5 @@
 #include "camera.h"
+#include "stb_image.h"
 
 Camera::Camera(glm::vec3 cameraPosition)
 {
@@ -129,6 +130,20 @@ glm::vec3 Camera::getCameraUp()
 void Camera::setCameraPosition(const glm::vec3& position)
 {
 	cameraPosition = position;
+}
+
+void Camera::setCameraViewDirection(glm::vec3 direction)
+{
+	cameraViewDirection = glm::normalize(direction);
+	cameraRight = glm::normalize(glm::cross(cameraViewDirection, glm::vec3(0.0f, 1.0f, 0.0f)));
+	cameraUp = glm::normalize(glm::cross(cameraRight, cameraViewDirection));
+
+	// Update rotation vars to match (essential for mouse continuity)
+	float pitch = asin(cameraViewDirection.y);
+	float yaw = atan2(cameraViewDirection.z, cameraViewDirection.x);
+
+	rotationOx = glm::degrees(pitch);
+	rotationOy = glm::degrees(yaw);
 }
 
 

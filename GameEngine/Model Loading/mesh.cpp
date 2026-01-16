@@ -1,6 +1,32 @@
 #include "mesh.h"
 
 Mesh::Mesh() {}
+std::vector<Vertex>& Mesh::getVertices()
+{
+	return vertices;
+}
+
+void Mesh::reuploadBuffers()
+{
+	// reupload vertex buffer
+	glBindVertexArray(vao);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER,
+		vertices.size() * sizeof(Vertex),
+		vertices.data(),
+		GL_STATIC_DRAW);
+
+	// reupload index buffer (you call it ibo)
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+		indices.size() * sizeof(unsigned int),
+		indices.data(),
+		GL_STATIC_DRAW);
+
+	glBindVertexArray(0);
+}
+
 
 Mesh::Mesh(std::vector<Vertex> vertices, std::vector<int> indices)
 {

@@ -1,5 +1,6 @@
 #include "window.h"
 
+
 Window::Window(char* name, int width, int height)
 {
 	this -> name = name;

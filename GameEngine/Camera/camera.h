@@ -40,8 +40,8 @@ class Camera
 
 		//s1
 		void setCameraPosition(const glm::vec3& position);
+		void setCameraViewDirection(glm::vec3 direction);
 
 
 
 };
-

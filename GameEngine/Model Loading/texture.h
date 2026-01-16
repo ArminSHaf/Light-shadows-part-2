@@ -4,3 +4,4 @@
 
 
 GLuint loadBMP(const char * imagepath);
+GLuint loadTexture(const char* path);

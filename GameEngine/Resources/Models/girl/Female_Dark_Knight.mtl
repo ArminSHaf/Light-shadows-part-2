@@ -1,0 +1,69 @@
+# Blender 4.5.1 LTS MTL File: 'Female_Dark_Knight.blend'
+# www.blender.org
+
+newmtl Female_Dark_Knight_Armor
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd Textures/Female_Dark_Knight_Armor_Color.png
+map_Ns Textures/Female_Dark_Knight_Armor_Roughness.png
+map_refl Textures/Female_Dark_Knight_Armor_Metallic.png
+map_Bump -bm 1.000000 Textures/Female_Dark_Knight_Armor_Normal.png
+
+newmtl Female_Dark_Knight_Eye_Lens
+Ns 668.241333
+Ka 1.000000 1.000000 1.000000
+Kd 0.000000 0.000000 0.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 0.333333
+illum 9
+
+newmtl Female_Dark_Knight_Eyes
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd Textures/Female_Dark_Knight_Eye_Color.png
+map_Ns Textures/Female_Dark_Knight_Eye_Roughness.png
+map_Bump -bm 1.000000 Textures/Female_Dark_Knight_Eye_Normal.png
+
+newmtl Female_Dark_Knight_Hair
+Ns 227.789276
+Ka 0.654545 0.654545 0.654545
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+illum 3
+map_d Textures/Female_Dark_Knight_Hair_Alpha.png
+map_Bump -bm 1.000000 Textures/Female_Dark_Knight_Hair_Normal.png
+
+newmtl Female_Dark_Knight_Skin
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd Textures/Female_Dark_Knight_Skin_Color.png
+map_Ns Textures/Female_Dark_Knight_Skin_Roughness.png
+map_Bump -bm 1.000000 Textures/Female_Dark_Knight_Skin_Normal.png
+
+newmtl Female_Dark_Knight_Sword
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd Textures/Sword_Base_Color.png
+map_Ns Textures/Female_Dark_Knight_Sword_Roughness.png
+map_refl Textures/Female_Dark_Knight_Sword_Metallic.png
+map_Bump -bm 1.000000 Textures/Female_Dark_Knight_Sword_Normal.png
