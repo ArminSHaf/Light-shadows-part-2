@@ -859,7 +859,7 @@ int main()
 	Mesh flagMesh = loader.loadObj(
 		"Resources/castle kit/Models/OBJ format/flag.obj"
 	);
-
+	//
 
 	Mesh ramMesh = loader.loadObj(
 		"Resources/castle kit/Models/OBJ format/siege-ram.obj"

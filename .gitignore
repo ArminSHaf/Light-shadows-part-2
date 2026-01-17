@@ -9,3 +9,14 @@ Release/
 *.exe
 *.tlog
 *.log
+
+# Missing VS rules
+x64/
+x86/
+*.ipch
+*.ap
+*.obj
+*.pdb
+*.ilk
+*.idb
+imgui.ini
