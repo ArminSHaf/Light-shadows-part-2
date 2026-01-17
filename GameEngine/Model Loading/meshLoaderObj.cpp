@@ -90,7 +90,7 @@ Mesh MeshLoaderObj::loadObj(const std::string &filename)
 
 
 	//Reading Obj file
-	std::ifstream file(filename.c_str(), std::ios::in | std::ios::binary);
+	std::ifstream file(filename.c_str(), std::ios::in);
 	if (!file.good())
 	{
 		std::cout << "Obj model not found " << filename << std::endl;

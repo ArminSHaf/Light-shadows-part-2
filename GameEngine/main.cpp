@@ -907,7 +907,7 @@ int main()
 	// wizard projectile
 	Mesh projectileMesh = loader.loadObj("Resources/Models/WizardProjectile/CraneoOBJ.obj");
 	// Princess (Task 0 / Intro)
-	Mesh princessMesh = loader.loadObj("Resources/Models/girl/Female_Dark_Knight.obj");
+	//Mesh princessMesh = loader.loadObj("Resources/Models/girl/Female_Dark_Knight.obj");
 
 	// tree positions
 	std::vector<glm::vec3> treePositions;
@@ -2277,7 +2277,7 @@ int main()
 			// Force texture
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, wizRobeTex);
-			princessMesh.draw(shader);
+			//princessMesh.draw(shader);
 
 			// --- DEBUG BOX ---
 			// If you see this box but not the princess, the princess mesh is broken.
@@ -2342,7 +2342,7 @@ int main()
 
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, wizRobeTex);
-			princessMesh.draw(shader);
+			//princessMesh.draw(shader);
 
 			// Debug Box
 			glm::mat4 boxModel = glm::mat4(1.0f);
