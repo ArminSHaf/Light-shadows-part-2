@@ -274,4 +274,200 @@ Mesh MeshLoaderObj::loadObj(const std::string &filename, std::vector<Texture> te
 	return mesh;
 }
 
+std::vector<Mesh> MeshLoaderObj::loadObjMulti(const std::string &filename)
+{
+	struct SubmeshData
+	{
+		std::vector<Vertex> vertices;
+		std::vector<int> indices;
+		std::string material;
+	};
+
+	std::map<std::string, SubmeshData> submeshes;
+	std::map<std::string, std::string> matToTexPath;
+	std::string currentMaterial = "default";
+	std::string baseDir = filename.substr(0, filename.find_last_of("/\\") + 1);
+
+	std::ifstream file(filename.c_str(), std::ios::in);
+	if (!file.good())
+	{
+		std::cout << "Obj model not found " << filename << std::endl;
+		std::terminate();
+	}
+
+	std::string line;
+	std::vector<std::string> tokens, facetokens;
+
+	std::vector<glm::vec3> positions;
+	positions.reserve(200000);
+
+	std::vector<glm::vec3> normals;
+	normals.reserve(200000);
+
+	std::vector<glm::vec2> texcoords;
+	texcoords.reserve(200000);
+
+	auto& getSubmesh = [&](const std::string& mat) -> SubmeshData&
+	{
+		auto& sm = submeshes[mat];
+		sm.material = mat;
+		return sm;
+	};
+
+	while (std::getline(file, line))
+	{
+		_stringTokenize(line, tokens);
+
+		if (tokens.size() == 0)
+			continue;
+
+		if (tokens.size() > 0 && tokens[0].at(0) == '#')
+			continue;
+
+		if (tokens[0] == "mtllib" && tokens.size() >= 2)
+		{
+			std::string mtlPath = baseDir + tokens[1];
+			matToTexPath = loadMTLMap(mtlPath, baseDir);
+			continue;
+		}
+
+		if (tokens[0] == "usemtl" && tokens.size() >= 2)
+		{
+			currentMaterial = tokens[1];
+			continue;
+		}
+
+		if (tokens.size() > 3 && tokens[0] == "v")
+			positions.push_back(glm::vec3(_stringToFloat(tokens[1]), _stringToFloat(tokens[2]), _stringToFloat(tokens[3])));
+
+		if (tokens.size() > 3 && tokens[0] == "vn")
+			normals.push_back(glm::vec3(_stringToFloat(tokens[1]), _stringToFloat(tokens[2]), _stringToFloat(tokens[3])));
+
+		if (tokens.size() > 2 && tokens[0] == "vt")
+			texcoords.push_back(glm::vec2(_stringToFloat(tokens[1]), _stringToFloat(tokens[2])));
+
+		if (tokens.size() >= 4 && tokens[0] == "f")
+		{
+			unsigned int face_format = 0;
+			if (tokens[1].find("//") != std::string::npos) face_format = 3;
+			_faceTokenize(tokens[1], facetokens);
+
+			if (facetokens.size() == 3)
+				face_format = 4;
+			else
+			{
+				if (facetokens.size() == 2)
+				{
+					if (face_format != 3) face_format = 2;
+				}
+				else
+				{
+					face_format = 1;
+				}
+			}
+
+			SubmeshData& sm = getSubmesh(currentMaterial);
+			unsigned int index_of_first_vertex_of_face = -1;
+
+			for (unsigned int num_token = 1; num_token < tokens.size(); num_token++)
+			{
+				if (tokens[num_token].at(0) == '#') break;
+				_faceTokenize(tokens[num_token], facetokens);
+
+				if (face_format == 1)
+				{
+					int p_index = _stringToInt(facetokens[0]);
+					if (p_index > 0) p_index -= 1;
+					else p_index = positions.size() + p_index;
+
+					sm.vertices.push_back(Vertex(positions[p_index].x, positions[p_index].y, positions[p_index].z));
+				}
+				else if (face_format == 2)
+				{
+					int p_index = _stringToInt(facetokens[0]);
+					if (p_index > 0) p_index -= 1;
+					else p_index = positions.size() + p_index;
+
+					int t_index = _stringToInt(facetokens[1]);
+					if (t_index > 0) t_index -= 1;
+					else t_index = texcoords.size() + t_index;
+
+					sm.vertices.push_back(Vertex(positions[p_index].x, positions[p_index].y, positions[p_index].z, texcoords[t_index].x, texcoords[t_index].y));
+				}
+				else if (face_format == 3)
+				{
+					int p_index = _stringToInt(facetokens[0]);
+					if (p_index > 0) p_index -= 1;
+					else p_index = positions.size() + p_index;
+
+					int n_index = _stringToInt(facetokens[1]);
+					if (n_index > 0) n_index -= 1;
+					else n_index = normals.size() + n_index;
+
+					sm.vertices.push_back(Vertex(positions[p_index].x, positions[p_index].y, positions[p_index].z, normals[n_index].x, normals[n_index].y, normals[n_index].z));
+				}
+				else
+				{
+					int p_index = _stringToInt(facetokens[0]);
+					if (p_index > 0) p_index -= 1;
+					else p_index = positions.size() + p_index;
+
+					int t_index = _stringToInt(facetokens[1]);
+					if (t_index > 0) t_index -= 1;
+					else t_index = normals.size() + t_index;
+
+					int n_index = _stringToInt(facetokens[2]);
+					if (n_index > 0) n_index -= 1;
+					else n_index = normals.size() + n_index;
+
+					sm.vertices.push_back(Vertex(positions[p_index].x, positions[p_index].y, positions[p_index].z, normals[n_index].x, normals[n_index].y, normals[n_index].z, texcoords[t_index].x, texcoords[t_index].y));
+				}
+
+				if (num_token < 4)
+				{
+					if (num_token == 1)
+						index_of_first_vertex_of_face = sm.vertices.size() - 1;
+
+					sm.indices.push_back(sm.vertices.size() - 1);
+				}
+				else
+				{
+					sm.indices.push_back(index_of_first_vertex_of_face);
+					sm.indices.push_back(sm.vertices.size() - 2);
+					sm.indices.push_back(sm.vertices.size() - 1);
+				}
+			}
+		}
+	}
+
+	std::cout << "Loading (multi):  " << filename << std::endl;
+
+	std::vector<Mesh> meshes;
+	meshes.reserve(submeshes.size());
+
+	for (auto& kv : submeshes)
+	{
+		SubmeshData& sm = kv.second;
+		if (sm.indices.empty())
+			continue;
+
+		std::vector<Texture> textures;
+		auto it = matToTexPath.find(sm.material);
+		if (it != matToTexPath.end())
+		{
+			GLuint texId = loadTexture(it->second.c_str());
+			if (texId != 0)
+			{
+				Texture t;
+				t.id = texId;
+				t.type = "texture_diffuse";
+				textures.push_back(t);
+			}
+		}
+
+		meshes.emplace_back(sm.vertices, sm.indices, textures);
+	}
+
+	return meshes;
+}
 

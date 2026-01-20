@@ -11,8 +11,9 @@
 class MeshLoaderObj
 {
 	public:
-		MeshLoaderObj();
-		Mesh loadObj(const std::string &filename, std::vector<Texture> textures);
-		Mesh loadObj(const std::string &filename);
+	MeshLoaderObj();
+	Mesh loadObj(const std::string &filename, std::vector<Texture> textures);
+	Mesh loadObj(const std::string &filename);
+	std::vector<Mesh> loadObjMulti(const std::string &filename);
 };
 

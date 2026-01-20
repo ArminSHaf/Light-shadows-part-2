@@ -16,6 +16,8 @@ float lastFrame = 0.0f;
 
 Window window("Game Engine", 1000, 900);
 
+glm::vec3 princessPos = glm::vec3(0.0f, 40.0f, 90.0f);
+bool princessVisible = true;
 Camera camera;
 
 glm::vec3 lightColor = glm::vec3(1.0f);
@@ -710,6 +712,67 @@ Mesh* getPuzzleMeshByType(int type, Mesh& flagMesh, Mesh& ramMesh, Mesh& trebuch
 	default: return &box;
 	}
 }
+
+#include <fstream>
+#include <sstream>
+
+// Loads all map_Kd textures from an .mtl into a vector<Texture>
+// NOTE: this uses your loadBMP(), so textures MUST be .bmp
+std::vector<Texture> loadMTLDiffuseTextures(const std::string& mtlPath, const std::string& mtlFolder)
+{
+	std::vector<Texture> out;
+
+	std::ifstream f(mtlPath);
+	if (!f.is_open())
+	{
+		std::cout << "ERROR: Cannot open MTL: " << mtlPath << "\n";
+		return out;
+	}
+
+	std::string line;
+	while (std::getline(f, line))
+	{
+		// skip comments
+		if (line.empty() || line[0] == '#') continue;
+
+		std::istringstream iss(line);
+		std::string key;
+		iss >> key;
+
+		// We care about diffuse texture
+		if (key == "map_Kd")
+		{
+			std::string texName;
+			// some MTLs have spaces in filename; grab the rest of the line
+			std::getline(iss, texName);
+
+			// trim leading spaces
+			while (!texName.empty() && (texName[0] == ' ' || texName[0] == '\t'))
+				texName.erase(texName.begin());
+
+			if (texName.empty()) continue;
+
+			std::string fullPath = mtlFolder + "/" + texName;
+
+			GLuint id = loadBMP(fullPath.c_str());
+			if (id == 0)
+			{
+				std::cout << "WARNING: loadBMP failed for: " << fullPath << "\n";
+				continue;
+			}
+
+			Texture t;
+			t.id = id;
+			t.type = "texture_diffuse";
+			out.push_back(t);
+
+			std::cout << "Loaded MTL diffuse: " << fullPath << "\n";
+		}
+	}
+
+	return out;
+}
+
 //mihai
 
 
@@ -763,6 +826,8 @@ int main()
 	GLuint wizSkinTex = loadBMP("Resources/Textures/wizard_skin.bmp");
 	GLuint wizHatTex = loadBMP("Resources/Textures/wizard_hat.bmp");
 	GLuint wizStaffTex = loadBMP("Resources/Textures/wizard_staff.bmp");
+	GLuint cloudTexDark = loadBMP("Resources/Textures/darkCloud.bmp");
+	GLuint cloudTexLight = loadBMP("Resources/Textures/princessSkin.bmp");
 
 	GLuint metalTex = loadBMP("Resources/Textures/metal.bmp");
 
@@ -846,6 +911,268 @@ int main()
 	// Create Obj files - easier :)
 	// we can add here our textures :)
 	MeshLoaderObj loader;
+	std::vector<Mesh> princessMeshes = loader.loadObjMulti("Resources/Models/princess.obj");
+	std::vector<Texture> cloudTexturesDark;
+	cloudTexturesDark.push_back(Texture());
+	cloudTexturesDark[0].id = cloudTexDark;
+	cloudTexturesDark[0].type = "texture_diffuse";
+	std::vector<Texture> cloudTexturesLight;
+	cloudTexturesLight.push_back(Texture());
+	cloudTexturesLight[0].id = cloudTexLight;
+	cloudTexturesLight[0].type = "texture_diffuse";
+	Mesh cloudMeshDark = loader.loadObj("Resources/Models/cloud.obj", cloudTexturesDark);
+	Mesh cloudMeshLight = loader.loadObj("Resources/Models/cloud.obj", cloudTexturesLight);
+	std::vector<glm::vec3> cloudPositions = {
+		glm::vec3(-260.0f, 120.0f, -200.0f),
+		glm::vec3(-200.0f, 128.0f, 160.0f),
+		glm::vec3(-120.0f, 118.0f, -80.0f),
+		glm::vec3(-40.0f, 132.0f, 200.0f),
+		glm::vec3(40.0f, 124.0f, 60.0f),
+		glm::vec3(120.0f, 126.0f, -180.0f),
+		glm::vec3(200.0f, 130.0f, 140.0f),
+		glm::vec3(260.0f, 134.0f, -40.0f),
+		glm::vec3(-240.0f, 122.0f, 40.0f),
+		glm::vec3(-160.0f, 136.0f, -220.0f),
+		glm::vec3(-80.0f, 121.0f, 120.0f),
+		glm::vec3(0.0f, 138.0f, -140.0f),
+		glm::vec3(80.0f, 125.0f, 220.0f),
+		glm::vec3(160.0f, 133.0f, -100.0f),
+		glm::vec3(240.0f, 127.0f, 20.0f),
+		glm::vec3(-300.0f, 129.0f, 220.0f),
+		glm::vec3(-180.0f, 135.0f, 0.0f),
+		glm::vec3(-60.0f, 123.0f, -260.0f),
+		glm::vec3(60.0f, 131.0f, -20.0f),
+		glm::vec3(140.0f, 119.0f, 180.0f),
+		glm::vec3(220.0f, 137.0f, -220.0f),
+		glm::vec3(80.0f, 126.0f, 100.0f),
+		glm::vec3(-100.0f, 134.0f, 240.0f),
+		glm::vec3(20.0f, 121.0f, -200.0f),
+		glm::vec3(-320.0f, 124.0f, -80.0f),
+		glm::vec3(-260.0f, 136.0f, 80.0f),
+		glm::vec3(-140.0f, 120.0f, -320.0f),
+		glm::vec3(-20.0f, 130.0f, 280.0f),
+		glm::vec3(100.0f, 122.0f, -300.0f),
+		glm::vec3(180.0f, 135.0f, 60.0f),
+		glm::vec3(260.0f, 128.0f, -260.0f),
+		glm::vec3(320.0f, 132.0f, 0.0f),
+		glm::vec3(-220.0f, 138.0f, 300.0f),
+		glm::vec3(-40.0f, 126.0f, -320.0f),
+		glm::vec3(40.0f, 133.0f, 320.0f),
+		glm::vec3(300.0f, 121.0f, -120.0f),
+		glm::vec3(-340.0f, 127.0f, -240.0f),
+		glm::vec3(-280.0f, 140.0f, 240.0f),
+		glm::vec3(-180.0f, 125.0f, -120.0f),
+		glm::vec3(-60.0f, 139.0f, 160.0f),
+		glm::vec3(60.0f, 123.0f, -240.0f),
+		glm::vec3(180.0f, 136.0f, 220.0f),
+		glm::vec3(260.0f, 129.0f, -300.0f),
+		glm::vec3(340.0f, 133.0f, 60.0f),
+		glm::vec3(-300.0f, 141.0f, 0.0f),
+		glm::vec3(-100.0f, 128.0f, 320.0f),
+		glm::vec3(20.0f, 135.0f, -320.0f),
+		glm::vec3(220.0f, 122.0f, -40.0f),
+		glm::vec3(-360.0f, 129.0f, -120.0f),
+		glm::vec3(-300.0f, 142.0f, 180.0f),
+		glm::vec3(-200.0f, 126.0f, -360.0f),
+		glm::vec3(-80.0f, 140.0f, 240.0f),
+		glm::vec3(80.0f, 124.0f, -360.0f),
+		glm::vec3(200.0f, 137.0f, 300.0f),
+		glm::vec3(280.0f, 130.0f, -200.0f),
+		glm::vec3(360.0f, 134.0f, 120.0f),
+		glm::vec3(-320.0f, 145.0f, 40.0f),
+		glm::vec3(-140.0f, 127.0f, 360.0f),
+		glm::vec3(0.0f, 136.0f, -380.0f),
+		glm::vec3(240.0f, 123.0f, 20.0f),
+		glm::vec3(-400.0f, 132.0f, -260.0f),
+		glm::vec3(-340.0f, 146.0f, 260.0f),
+		glm::vec3(-240.0f, 128.0f, -420.0f),
+		glm::vec3(-120.0f, 143.0f, 320.0f),
+		glm::vec3(0.0f, 130.0f, -440.0f),
+		glm::vec3(120.0f, 148.0f, 360.0f),
+		glm::vec3(240.0f, 135.0f, -320.0f),
+		glm::vec3(320.0f, 139.0f, 220.0f),
+		glm::vec3(400.0f, 141.0f, -40.0f),
+		glm::vec3(-360.0f, 150.0f, 80.0f),
+		glm::vec3(-200.0f, 131.0f, 420.0f),
+		glm::vec3(-40.0f, 144.0f, -420.0f),
+		glm::vec3(160.0f, 127.0f, 80.0f),
+		glm::vec3(280.0f, 145.0f, -140.0f),
+		glm::vec3(360.0f, 129.0f, 360.0f),
+		glm::vec3(-420.0f, 137.0f, 360.0f),
+		glm::vec3(-280.0f, 147.0f, -140.0f),
+		glm::vec3(-160.0f, 133.0f, -320.0f),
+		glm::vec3(40.0f, 142.0f, 440.0f),
+		glm::vec3(-42.0f, 140.0f, -70.0f),
+		glm::vec3(-28.0f, 146.0f, -50.0f),
+		glm::vec3(-50.0f, 138.0f, -85.0f),
+		glm::vec3(-22.0f, 144.0f, -64.0f),
+		glm::vec3(-35.0f, 142.0f, -42.0f),
+		glm::vec3(140.0f, 151.0f, 420.0f),
+		glm::vec3(260.0f, 138.0f, -380.0f),
+		glm::vec3(340.0f, 142.0f, 260.0f),
+		glm::vec3(420.0f, 144.0f, -80.0f),
+		glm::vec3(-420.0f, 153.0f, 120.0f),
+		glm::vec3(-240.0f, 135.0f, 480.0f),
+		glm::vec3(-80.0f, 148.0f, -480.0f),
+		glm::vec3(180.0f, 131.0f, 120.0f),
+		glm::vec3(300.0f, 150.0f, -180.0f),
+		glm::vec3(380.0f, 134.0f, 420.0f),
+		glm::vec3(-500.0f, 140.0f, 420.0f),
+		glm::vec3(-320.0f, 152.0f, -180.0f),
+		glm::vec3(-180.0f, 139.0f, -380.0f),
+		glm::vec3(60.0f, 146.0f, 520.0f),
+		glm::vec3(40.0f, 146.0f, -60.0f),
+		glm::vec3(80.0f, 149.0f, -110.0f),
+		glm::vec3(20.0f, 143.0f, -130.0f),
+		glm::vec3(100.0f, 150.0f, -85.0f),
+		glm::vec3(-520.0f, 138.0f, -420.0f),
+		glm::vec3(-440.0f, 152.0f, 420.0f),
+		glm::vec3(-320.0f, 134.0f, -560.0f),
+		glm::vec3(-200.0f, 149.0f, 460.0f),
+		glm::vec3(-80.0f, 136.0f, -600.0f),
+		glm::vec3(80.0f, 154.0f, 520.0f),
+		glm::vec3(200.0f, 140.0f, -460.0f),
+		glm::vec3(320.0f, 144.0f, 360.0f),
+		glm::vec3(440.0f, 146.0f, -120.0f),
+		glm::vec3(-460.0f, 156.0f, 160.0f),
+		glm::vec3(-300.0f, 137.0f, 520.0f),
+		glm::vec3(-140.0f, 151.0f, -520.0f),
+		glm::vec3(140.0f, 135.0f, 160.0f),
+		glm::vec3(300.0f, 153.0f, -220.0f),
+		glm::vec3(420.0f, 136.0f, 520.0f),
+		glm::vec3(-540.0f, 142.0f, 520.0f),
+		glm::vec3(-360.0f, 154.0f, -220.0f),
+		glm::vec3(-220.0f, 140.0f, -460.0f),
+		glm::vec3(40.0f, 148.0f, 600.0f),
+		glm::vec3(240.0f, 134.0f, -60.0f)
+	};
+	std::vector<glm::vec3> cloudScales = {
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.2f, 0.6f, 1.2f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.2f, 0.6f, 1.2f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.05f, 0.52f, 1.05f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.15f, 0.58f, 1.15f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.05f, 0.52f, 1.05f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.2f, 0.6f, 1.2f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.15f, 0.58f, 1.15f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.05f, 0.52f, 1.05f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.2f, 0.6f, 1.2f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.15f, 0.58f, 1.15f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.2f, 0.6f, 1.2f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.15f, 0.58f, 1.15f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.2f, 0.6f, 1.2f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.15f, 0.58f, 1.15f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.15f, 0.58f, 1.15f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.2f, 0.6f, 1.2f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.15f, 0.58f, 1.15f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.15f, 0.58f, 1.15f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.2f, 0.6f, 1.2f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.15f, 0.58f, 1.15f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.2f, 0.6f, 1.2f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.15f, 0.58f, 1.15f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.15f, 0.58f, 1.15f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.2f, 0.6f, 1.2f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.15f, 0.58f, 1.15f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.2f, 0.6f, 1.2f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.15f, 0.58f, 1.15f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(0.85f, 0.42f, 0.85f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(0.8f, 0.4f, 0.8f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.15f, 0.58f, 1.15f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.2f, 0.6f, 1.2f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.15f, 0.58f, 1.15f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(0.9f, 0.45f, 0.9f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.2f, 0.6f, 1.2f),
+		glm::vec3(1.0f, 0.5f, 1.0f),
+		glm::vec3(1.15f, 0.58f, 1.15f),
+		glm::vec3(0.95f, 0.48f, 0.95f),
+		glm::vec3(1.1f, 0.55f, 1.1f),
+		glm::vec3(0.9f, 0.45f, 0.9f)
+	};
+
+
+
 	Mesh sun = loader.loadObj("Resources/Models/sphere.obj");
 	//Mesh box = loader.loadObj("Resources/Models/cube.obj", textures);
 	// // Cube mesh WITHOUT textures (textures bound manually per draw)
@@ -854,6 +1181,9 @@ int main()
 	Mesh sphereMesh = loader.loadObj("Resources/Models/sphere.obj", emptyTextures);
 	Mesh pyramidMesh = loader.loadObj("Resources/Models/cube.obj", emptyTextures);
 	Mesh hexMesh = loader.loadObj("Resources/Models/sphere.obj", emptyTextures);
+
+	//Mesh princessMesh = loader.loadObj("Resources/Models/princess.obj");
+
 
 	//test mihai
 	Mesh flagMesh = loader.loadObj(
@@ -908,7 +1238,7 @@ int main()
 	Mesh projectileMesh = loader.loadObj("Resources/Models/WizardProjectile/CraneoOBJ.obj");
 	// Princess (Task 0 / Intro)
 	//Mesh princessMesh = loader.loadObj("Resources/Models/girl/Female_Dark_Knight.obj");
-
+	
 	// tree positions
 	std::vector<glm::vec3> treePositions;
 	for (int x = -300; x <= 300; x += 40)
@@ -1155,6 +1485,44 @@ int main()
 		glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &ModelMatrix[0][0]);
 
 		terrain.draw(shader);
+
+		Mesh& cloudMesh = t5GameWon ? cloudMeshLight : cloudMeshDark;
+		for (size_t i = 0; i < cloudPositions.size(); i++)
+		{
+			glm::mat4 model = glm::mat4(1.0f);
+			model = glm::translate(model, cloudPositions[i]);
+			model = glm::scale(model, cloudScales[i]);
+
+			glm::mat4 MVPc = ProjectionMatrix * ViewMatrix * model;
+			glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &MVPc[0][0]);
+			glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
+
+			cloudMesh.draw(shader);
+		}
+
+		// ===== Princess in world (story or post-victory) =====
+		if (princessVisible && (isStoryActive || t5GameWon))
+		{
+			princessPos.y = getGroundHeight(princessPos.x, princessPos.z);
+
+			glm::mat4 model = glm::mat4(1.0f);
+			model = glm::translate(model, princessPos);
+			model = glm::scale(model, glm::vec3(2.5f));
+			model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0, 1, 0));
+
+			glm::mat4 MVPp = ProjectionMatrix * ViewMatrix * model;
+
+			glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &MVPp[0][0]);
+			glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
+
+			glDisable(GL_CULL_FACE);
+			glActiveTexture(GL_TEXTURE0);
+			for (auto& princessMesh : princessMeshes)
+			{
+				princessMesh.draw(shader);
+			}
+			glEnable(GL_CULL_FACE);
+		}
 
 
 		// trees drawing
@@ -1782,6 +2150,9 @@ int main()
 							{
 								t5BossAlive = false;
 								t5GameWon = true;
+								princessVisible = true;
+								princessPos = glm::vec3(-4.34974f, 10.0f, 20.7519f);
+								princessPos.y = getGroundHeight(princessPos.x, princessPos.z);
 								std::cout << "VICTORY! The Wizard is defeated!" << std::endl;
 								isEndingActive = true;
 								currentEndingLine = 0;
@@ -2265,8 +2636,8 @@ int main()
 			// Camera is at (0, 50, 100).
 			// We place her at (0, 40, 90).
 			glm::mat4 model = glm::mat4(1.0f);
-			model = glm::translate(model, glm::vec3(0.0f, 40.0f, 90.0f));
-			model = glm::scale(model, glm::vec3(15.0f));
+			model = glm::translate(model, princessPos);
+			model = glm::scale(model, glm::vec3(2.0f));
 			// Rotate to face player (Player at +Z looking -Z)
 			model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0, 1, 0));
 
@@ -2277,7 +2648,14 @@ int main()
 			// Force texture
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, wizRobeTex);
-			//princessMesh.draw(shader);
+			for (auto& princessMesh : princessMeshes)
+			{
+				princessMesh.draw(shader);
+			}
+
+			glEnable(GL_CULL_FACE);
+			// ---------------------------------------------------------
+
 
 			// --- DEBUG BOX ---
 			// If you see this box but not the princess, the princess mesh is broken.
@@ -2302,6 +2680,7 @@ int main()
 				if (currentStoryLine >= storyLines.size())
 				{
 					isStoryActive = false;
+					princessVisible = false;
 				}
 			}
 			eKeyPressedLastFrame = ePressed;
@@ -2341,8 +2720,10 @@ int main()
 			glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &model[0][0]);
 
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, wizRobeTex);
-			//princessMesh.draw(shader);
+			for (auto& princessMesh : princessMeshes)
+			{
+				princessMesh.draw(shader);
+			}
 
 			// Debug Box
 			glm::mat4 boxModel = glm::mat4(1.0f);
@@ -2406,6 +2787,7 @@ void processKeyboardInput()
 	float cameraSpeed = 30 * deltaTime;
 
 	glm::vec3 oldPos = camera.getCameraPosition();
+	static bool pKeyPressedLastFrame = false;
 
 	if (window.isPressed(GLFW_KEY_W))
 	{
@@ -2439,6 +2821,14 @@ void processKeyboardInput()
 		camera.keyboardMoveUp(cameraSpeed);
 	if (window.isPressed(GLFW_KEY_F))
 		camera.keyboardMoveDown(cameraSpeed);
+
+	bool pPressed = window.isPressed(GLFW_KEY_P);
+	if (pPressed && !pKeyPressedLastFrame)
+	{
+		const glm::vec3& pos = camera.getCameraPosition();
+		std::cout << "Camera pos: (" << pos.x << ", " << pos.y << ", " << pos.z << ")\n";
+	}
+	pKeyPressedLastFrame = pPressed;
 
 	// Jump
 	if (window.isPressed(GLFW_KEY_SPACE))
